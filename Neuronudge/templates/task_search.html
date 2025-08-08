@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block title %}Search Tasks{% endblock %}
+
+{% block content %}
+<h1>Search Your Tasks</h1>
+<form method="GET" action="{{ url_for('views.task_search_results') }}" role="search" aria-label="Search Tasks">
+    <label for="query">Enter keywords to search in task titles or descriptions:</label><br />
+    <input
+        type="search"
+        id="query"
+        name="query"
+        size="40"
+        placeholder="Search tasks..."
+        aria-describedby="search-help"
+        value="{{ request.args.get('query', '') }}"
+        autocomplete="off"
+        required
+    />
+    <small id="search-help" class="help-text">Search is case-insensitive and looks in titles and descriptions.</small>
+    <br /><br />
+    <button type="submit" class="btn btn-primary" aria-label="Submit search">Search</button>
+    <a href="{{ url_for('views.dashboard') }}" class="btn btn-secondary" role="button" style="margin-left: 1rem;">Cancel</a>
+</form>
+{% endblock %}

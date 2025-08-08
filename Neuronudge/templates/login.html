@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<section aria-labelledby="loginHeading" class="my-5">
+    <div class="container" style="max-width: 420px;">
+        <h1 id="loginHeading" class="mb-4 display-5 text-primary text-center">Login to Neuronudge</h1>
+
+        <form method="POST" action="{{ url_for('auth.login') }}" novalidate aria-describedby="loginHelpText" aria-live="polite" role="form">
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                {{ form.email(class="form-control", id="email", placeholder="you@example.com", aria_required="true", autofocus=True) }}
+                {% if form.email.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.email.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                {{ form.password(class="form-control", id="password", placeholder="Enter your password", aria_required="true") }}
+                {% if form.password.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.password.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3 form-check">
+                {{ form.remember_me(class="form-check-input", id="rememberMe") }}
+                <label class="form-check-label" for="rememberMe">Remember me</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" aria-label="Submit login form">Login</button>
+        </form>
+
+        <hr class="my-4" />
+        <p class="text-center">
+            Don't have an account?
+            <a href="{{ url_for('auth.register') }}" aria-label="Register for a new account">Register here</a>.
+        </p>
+        <p class="text-center">
+            Forgot your password? <a href="{{ url_for('auth.password_reset') }}" aria-label="Reset your password">Reset it here</a>.
+        </p>
+    </div>
+</section>
+{% endblock %}

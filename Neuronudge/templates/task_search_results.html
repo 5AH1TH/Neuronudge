@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block title %}Search Results{% endblock %}
+
+{% block content %}
+<h1>Search Results for "{{ query }}"</h1>
+
+{% if tasks.items %}
+    <p>Found {{ tasks.total }} task{{ '' if tasks.total == 1 else 's' }} matching your search.</p>
+    <table role="grid" style="width:100%; border-collapse: collapse;">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Priority</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks.items %}
+            <tr class="{{ 'completed' if task.completed else '' }}">
+                <td>{{ task.title }}</td>
+                <td>{{ task.description or 'No description' }}</td>
+                <td>
+                    {% if task.priority == 1 %}High{% elif task.priority == 2 %}Medium{% else %}Low{% endif %}
+                </td>
+                <td>{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '—' }}</td>
+                <td>{{ 'Completed' if task.completed else 'Pending' }}</td>
+                <td>
+                    <a href="{{ url_for('views.edit_task', id=task.id) }}">Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <nav aria-label="Pagination navigation" style="margin-top: 1rem;">
+        {% if tasks.has_prev %}
+            <a href="{{ url_for('views.task_search_results', query=query, page=tasks.prev_num) }}" class="btn btn-secondary">Previous</a>
+        {% else %}
+            <span class="btn btn-secondary disabled" aria-disabled="true">Previous</span>
+        {% endif %}
+        <span>Page {{ tasks.page }} of {{ tasks.pages }}</span>
+        {% if tasks.has_next %}
+            <a href="{{ url_for('views.task_search_results', query=query, page=tasks.next_num) }}" class="btn btn-secondary">Next</a>
+        {% else %}
+            <span class="btn btn-secondary disabled" aria-disabled="true">Next</span>
+        {% endif %}
+    </nav>
+
+{% else %}
+    <p>No tasks found matching your search criteria. <a href="{{ url_for('views.task_search') }}">Try again</a> or <a href="{{ url_for('views.dashboard') }}">return to dashboard</a>.</p>
+{% endif %}
+{% endblock %}

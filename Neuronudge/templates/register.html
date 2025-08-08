@@ -1,0 +1,83 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<section aria-labelledby="registerHeading" class="my-5">
+    <div class="container" style="max-width: 480px;">
+        <h1 id="registerHeading" class="mb-4 display-5 text-primary text-center">Create Your Neuronudge Account</h1>
+
+        <form method="POST" action="{{ url_for('auth.register') }}" novalidate aria-describedby="registerHelpText" role="form">
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+                <label for="name" class="form-label">Full Name</label>
+                {{ form.name(class="form-control", id="name", placeholder="Your full name", aria_required="true", autofocus=True) }}
+                {% if form.name.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.name.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                {{ form.email(class="form-control", id="email", placeholder="you@example.com", aria_required="true") }}
+                {% if form.email.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.email.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                {{ form.password(class="form-control", id="password", placeholder="Create a password", aria_required="true") }}
+                {% if form.password.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.password.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <small class="form-text text-muted">Your password should be at least 8 characters long.</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="confirm_password" class="form-label">Confirm Password</label>
+                {{ form.confirm_password(class="form-control", id="confirm_password", placeholder="Re-enter your password", aria_required="true") }}
+                {% if form.confirm_password.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.confirm_password.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label for="profile_type" class="form-label">Profile Type</label>
+                {{ form.profile_type(class="form-select", id="profile_type", aria_required="true") }}
+                <small class="form-text text-muted">Choose the profile that best fits your needs (ADHD, Dyslexia, or General).</small>
+                {% if form.profile_type.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.profile_type.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" aria-label="Submit registration form">Register</button>
+        </form>
+
+        <hr class="my-4" />
+        <p class="text-center">
+            Already have an account?
+            <a href="{{ url_for('auth.login') }}" aria-label="Login to your account">Login here</a>.
+        </p>
+    </div>
+</section>
+{% endblock %}

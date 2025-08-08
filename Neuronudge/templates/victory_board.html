@@ -1,0 +1,17 @@
+﻿{% extends "layout.html" %}
+{% block content %}
+<h2>Victory Board</h2>
+
+{% if tasks %}
+<ul class="list-group">
+    {% for task in tasks %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+        {{ task.emoji }} {{ task.title }}
+        <span class="badge bg-success rounded-pill">Done</span>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No completed tasks yet.</p>
+{% endif %}
+{% endblock %}

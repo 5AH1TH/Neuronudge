@@ -1,0 +1,101 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<section aria-labelledby="profileHeading" class="my-5">
+    <div class="container" style="max-width: 700px;">
+        <h1 id="profileHeading" class="mb-4 display-5 text-primary text-center">Your Profile</h1>
+
+        <div class="row">
+            <div class="col-md-4 text-center mb-4">
+                <!-- Avatar placeholder -->
+                <img
+                    src="{{ current_user.avatar_url or url_for('static', filename='img/default-avatar.png') }}"
+                    alt="User avatar"
+                    class="img-fluid rounded-circle border border-secondary"
+                    style="max-width: 180px;"
+                />
+                <form method="POST" action="{{ url_for('views.upload_avatar') }}" enctype="multipart/form-data" class="mt-3" aria-label="Upload new avatar">
+                    <div class="mb-3">
+                        <input class="form-control" type="file" name="avatar" accept="image/*" aria-describedby="avatarHelp" />
+                        <div id="avatarHelp" class="form-text">Max file size: 2MB. Supported formats: JPG, PNG.</div>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary btn-sm w-100">Upload Avatar</button>
+                </form>
+            </div>
+
+            <div class="col-md-8">
+                <dl class="row">
+                    <dt class="col-sm-4">Full Name:</dt>
+                    <dd class="col-sm-8">{{ current_user.name or "Not set" }}</dd>
+
+                    <dt class="col-sm-4">Email Address:</dt>
+                    <dd class="col-sm-8">{{ current_user.email }}</dd>
+
+                    <dt class="col-sm-4">Profile Type:</dt>
+                    <dd class="col-sm-8">{{ current_user.profile_type }}</dd>
+
+                    <dt class="col-sm-4">Registered On:</dt>
+                    <dd class="col-sm-8">{{ current_user.registered_on.strftime('%B %d, %Y') }}</dd>
+
+                    <dt class="col-sm-4">Preferences:</dt>
+                    <dd class="col-sm-8">
+                        <ul>
+                            <li>Focus Time: {{ current_user.preferences.focus_time }} minutes</li>
+                            <li>Break Time: {{ current_user.preferences.break_time }} minutes</li>
+                            <li>Notifications: {{ 'Enabled' if current_user.preferences.notifications_enabled else 'Disabled' }}</li>
+                        </ul>
+                    </dd>
+                </dl>
+
+                <a href="{{ url_for('views.onboarding') }}" class="btn btn-outline-primary mt-4" aria-label="Edit your preferences">Edit Preferences</a>
+            </div>
+        </div>
+
+        <!-- Security Settings -->
+        <section aria-labelledby="securityHeading" class="mt-5">
+            <h2 id="securityHeading" class="h4 text-secondary mb-3">Security Settings</h2>
+            <form method="POST" action="{{ url_for('auth.change_password') }}" novalidate role="form" aria-describedby="passwordHelp">
+                {{ change_password_form.hidden_tag() }}
+
+                <div class="mb-3">
+                    <label for="current_password" class="form-label">Current Password</label>
+                    {{ change_password_form.current_password(class="form-control", id="current_password", aria_required="true") }}
+                    {% if change_password_form.current_password.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in change_password_form.current_password.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="new_password" class="form-label">New Password</label>
+                    {{ change_password_form.new_password(class="form-control", id="new_password", aria_required="true") }}
+                    {% if change_password_form.new_password.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in change_password_form.new_password.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="confirm_new_password" class="form-label">Confirm New Password</label>
+                    {{ change_password_form.confirm_new_password(class="form-control", id="confirm_new_password", aria_required="true") }}
+                    {% if change_password_form.confirm_new_password.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in change_password_form.confirm_new_password.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn btn-danger w-100">Change Password</button>
+            </form>
+        </section>
+    </div>
+</section>
+{% endblock %}

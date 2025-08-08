@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<section aria-labelledby="errorHeading" class="my-5">
+    <div class="container text-center py-5">
+        <h1 id="errorHeading" class="display-1 text-danger mb-4">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            {{ error_code if error_code else "Error" }}
+        </h1>
+        <p class="lead mb-4">
+            {{ error_message if error_message else "An unexpected error occurred. Please try again later." }}
+        </p>
+        <a href="{{ url_for('views.home') }}" class="btn btn-primary btn-lg" aria-label="Return to homepage">
+            <i class="fa-solid fa-house me-2"></i> Go Home
+        </a>
+    </div>
+</section>
+{% endblock %}

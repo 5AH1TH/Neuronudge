@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>{{ task.emoji }} {{ task.title }}</h2>
+<p>Estimated Time: {{ task.est_time }} minutes</p>
+<p>Status: {{ 'Completed' if task.is_done else 'In Progress' }}</p>
+
+<hr>
+
+<h4>AI Assistant</h4>
+<div id="ai-assistant">
+    <textarea id="ai-input" rows="4" class="form-control" placeholder="Ask for help or notes..."></textarea>
+    <button id="ai-send" class="btn btn-primary mt-2">Send</button>
+    <div id="ai-response" class="mt-3 border rounded p-2 bg-light"></div>
+</div>
+
+<hr>
+
+<h4>Upload Images</h4>
+<form id="image-upload-form" method="POST" enctype="multipart/form-data" action="{{ url_for('upload_image', task_id=task.id) }}">
+    <input type="file" name="image" accept="image/*" class="form-control" required>
+    <button type="submit" class="btn btn-secondary mt-2">Upload</button>
+</form>
+
+<div id="uploaded-images" class="mt-3">
+    {% if task.subtasks and task.subtasks.images %}
+        {% for img_url in task.subtasks.images %}
+        <img src="{{ img_url }}" alt="Uploaded Image" style="max-width: 200px; margin-right: 10px;">
+        {% endfor %}
+    {% endif %}
+</div>
+
+<a href="{{ url_for('views.dashboard') }}" class="btn btn-link mt-4">Back to Dashboard</a>
+
+<script>
+document.getElementById('ai-send').addEventListener('click', async () => {
+    const input = document.getElementById('ai-input').value;
+    const responseBox = document.getElementById('ai-response');
+    responseBox.textContent = 'Thinking...';
+
+    const response = await fetch('{{ url_for("ai_assistant", task_id=task.id) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input })
+    });
+    const data = await response.json();
+    responseBox.textContent = data.reply || 'Error getting response.';
+});
+</script>
+{% endblock %}

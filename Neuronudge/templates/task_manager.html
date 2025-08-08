@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2 class="mb-4">{{ 'Edit Task' if edit else 'Add a New Task' }}</h2>
+        <form method="POST">
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+                {{ form.title.label(class="form-label") }}
+                {{ form.title(class="form-control") }}
+            </div>
+            <div class="mb-3">
+                {{ form.color.label(class="form-label") }}
+                {{ form.color(class="form-control") }}
+            </div>
+            <div class="mb-3">
+                {{ form.emoji.label(class="form-label") }}
+                {{ form.emoji(class="form-control") }}
+            </div>
+            <div class="mb-3">
+                {{ form.est_time.label(class="form-label") }}
+                {{ form.est_time(class="form-control") }}
+            </div>
+
+            <div class="mb-3">
+                {{ form.submit(class="btn btn-success") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

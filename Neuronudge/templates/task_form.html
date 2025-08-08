@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% block title %}
+    {% if form.title.data %}Edit Task{% else %}Create New Task{% endif %}
+{% endblock %}
+
+{% block content %}
+<h1>{% if form.title.data %}Edit Task{% else %}Create New Task{% endif %}</h1>
+
+<form method="POST" action="" novalidate aria-describedby="task-form-instructions">
+    {{ form.hidden_tag() }}
+
+    <div id="task-form-instructions" class="form-help" style="margin-bottom: 1rem; color: #555; font-style: italic;">
+        Please fill in the fields below to {{ 'update your task' if form.title.data else 'create a new task' }}. Fields marked with * are required.
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.title.id }}">Task Title *</label><br>
+        {{ form.title(id=form.title.id, size=64, maxlength=100, placeholder="Enter the task title") }}
+        {% if form.title.errors %}
+            <ul class="errors" role="alert" aria-live="assertive">
+                {% for error in form.title.errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.description.id }}">Description</label><br>
+        {{ form.description(id=form.description.id, rows=5, cols=60, placeholder="Describe the task in detail (optional)") }}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.priority.id }}">Priority *</label><br>
+        {{ form.priority(id=form.priority.id) }}
+        <small class="help-text">Select a priority level: 1 = High, 2 = Medium, 3 = Low.</small>
+        {% if form.priority.errors %}
+            <ul class="errors" role="alert" aria-live="assertive">
+                {% for error in form.priority.errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+
+    <fieldset class="form-group" aria-describedby="completed-help">
+        <legend>Completed?</legend>
+        {{ form.completed() }}
+        <label for="{{ form.completed.id }}">Mark as completed</label>
+        <small id="completed-help" class="help-text">Check this box if the task is done.</small>
+    </fieldset>
+
+    <div class="form-group">
+        <label for="{{ form.due_date.id }}">Due Date</label><br>
+        {{ form.due_date(id=form.due_date.id, placeholder="YYYY-MM-DD") }}
+        <small class="help-text">Set a due date if applicable. Format: YYYY-MM-DD</small>
+        {% if form.due_date.errors %}
+            <ul class="errors" role="alert" aria-live="assertive">
+                {% for error in form.due_date.errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+
+    <fieldset class="form-group" aria-describedby="reminder-help">
+        <legend>Reminder</legend>
+        {{ form.reminder_set() }}
+        <label for="{{ form.reminder_set.id }}">Enable reminder notification</label>
+        <small id="reminder-help" class="help-text">Check this box to receive reminder alerts for this task.</small>
+    </fieldset>
+
+    <button type="submit" class="btn btn-primary" aria-label="Save Task">{% if form.title.data %}Update Task{% else %}Create Task{% endif %}</button>
+    <a href="{{ url_for('views.dashboard') }}" class="btn btn-secondary" role="button">Cancel</a>
+</form>
+{% endblock %}
