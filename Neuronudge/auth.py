@@ -1,9 +1,10 @@
+# Neuronudge/auth.py
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from .forms import LoginForm, RegisterForm
 from .models import User
 from . import db
 from flask_login import login_user, logout_user, login_required
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash
 
 auth = Blueprint('auth', __name__)
 
@@ -12,7 +13,8 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
-        if user and check_password_hash(user.password, form.password.data):
+        # use the model's check_password helper
+        if user and user.check_password(form.password.data):
             login_user(user)
             flash("Login successful!", category='success')
             return redirect(url_for('views.dashboard'))
@@ -22,22 +24,23 @@ def login():
 
 @auth.route('/register', methods=['GET', 'POST'])
 def register():
-    raise Exception("Something went wrong! This is Sahith!")
-
     form = RegisterForm()
 
+    # debugging helpful prints (remove later if you want)
     if request.method == 'POST':
         print("✅ POST request received.")
         print("Form validation:", form.validate_on_submit())
-        print("Errors:", form.errors)
+        print("Form errors:", form.errors)
+        print("Request.form:", dict(request.form))
 
     if form.validate_on_submit():
         existing_user = User.query.filter_by(email=form.email.data).first()
         if existing_user:
             flash("Email already registered.", category='error')
         else:
-            hashed_password = generate_password_hash(form.password.data, method='sha256')
+            hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256', salt_length=16)
             new_user = User(
+                name=form.name.data,
                 email=form.email.data,
                 username=form.username.data,
                 password_hash=hashed_password,
@@ -48,6 +51,12 @@ def register():
             login_user(new_user)
             flash("Registration successful!", category='success')
             return redirect(url_for('views.dashboard'))
+    else:
+        # If POST and there are errors, flash them so user sees why validation failed
+        if request.method == 'POST' and form.errors:
+            for field, errors in form.errors.items():
+                for err in errors:
+                    flash(f"{field}: {err}", category='error')
 
     return render_template('register.html', form=form)
 

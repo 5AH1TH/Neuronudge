@@ -1,16 +1,16 @@
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import UserMixin
+# Neuronudge/models.py
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-
-db = SQLAlchemy()
+from . import db
+from flask_login import UserMixin
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=True)                # full name
     username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    profile_type = db.Column(db.String(50), nullable=False)
+    profile_type = db.Column(db.String(50), nullable=False, default='General')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     tasks = db.relationship('Task', backref='user', lazy=True)
@@ -32,6 +32,8 @@ class Task(db.Model):
     description = db.Column(db.Text)
     due_date = db.Column(db.DateTime)
     completed = db.Column(db.Boolean, default=False)
+    priority = db.Column(db.Integer, default=3)         # 1 = high, 2 = med, 3 = low
+    reminder_set = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -73,7 +75,6 @@ class OnboardingPreferences(db.Model):
     def __repr__(self):
         return f"<Preferences User {self.user_id}: Focus {self.focus_time}m / Break {self.break_time}m>"
 
-# Additional dummy class for potential future expansion (to ensure min line count)
 class PlaceholderModel(db.Model):
     __tablename__ = 'placeholder_model'
     id = db.Column(db.Integer, primary_key=True)

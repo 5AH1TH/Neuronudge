@@ -20,6 +20,18 @@
                 {% endif %}
             </div>
 
+                <div class="mb-3">
+        <label for="username" class="form-label">Username</label>
+        {{ form.username(class="form-control", id="username", placeholder="Choose a username", aria_required="true") }}
+        {% if form.username.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.username.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
             <div class="mb-3">
                 <label for="email" class="form-label">Email address</label>
                 {{ form.email(class="form-control", id="email", placeholder="you@example.com", aria_required="true") }}

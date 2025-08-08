@@ -52,8 +52,28 @@ def dashboard():
     tasks = query.order_by(Task.priority.asc(), Task.due_date.asc().nulls_last()).paginate(page=page, per_page=per_page)
 
     onboarding = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
+
+    # Calculate task counts needed for dashboard summary cards
+    total_tasks = Task.query.filter_by(user_id=current_user.id).count()
+    pending_tasks = Task.query.filter_by(user_id=current_user.id, completed=False).count()
+    completed_tasks = Task.query.filter_by(user_id=current_user.id, completed=True).count()
+    overdue_tasks = Task.query.filter(
+        Task.user_id == current_user.id,
+        Task.completed == False,
+        Task.due_date != None,
+        Task.due_date < datetime.utcnow()
+    ).count()
+
+    task_counts = {
+        'total': total_tasks,
+        'pending': pending_tasks,
+        'completed': completed_tasks,
+        'overdue': overdue_tasks
+    }
+
     return render_template('dashboard.html', tasks=tasks, onboarding=onboarding,
-                           filter_status=filter_status, filter_priority=filter_priority, search_term=search_term)
+                           filter_status=filter_status, filter_priority=filter_priority, search_term=search_term,
+                           task_counts=task_counts)
 
 @views.route('/onboarding', methods=['GET', 'POST'])
 @login_required
@@ -175,14 +195,15 @@ def profile():
 def change_password():
     form = PasswordChangeForm()
     if form.validate_on_submit():
-        if not check_password_hash(current_user.password, form.old_password.data):
+        if not current_user.check_password(form.old_password.data):
             flash("Old password is incorrect.", category='error')
         else:
-            current_user.password = generate_password_hash(form.new_password.data, method='sha256')
+            current_user.set_password(form.new_password.data)
             db.session.commit()
             flash("Password changed successfully!", category='success')
             log_action(current_user.id, "Changed password")
             return redirect(url_for('views.profile'))
+
     return render_template('change_password.html', form=form)
 
 @views.route('/tasks/complete/<int:id>', methods=['POST'])
@@ -281,20 +302,3 @@ def internal_server_error(e):
 def home():
     return render_template('home.html', title='Home')
 
-@views.route('/register', methods=['GET', 'POST'])
-def register():
-    form = RegisterForm()
-    if form.validate_on_submit():
-        hashed_password = generate_password_hash(form.password.data, method='sha256')
-        new_user = User(
-            name=form.name.data,
-            username=form.username.data,
-            email=form.email.data,
-            password_hash=hashed_password,
-            profile_type=form.profile_type.data
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        flash("Account created successfully!", category='success')
-        return redirect(url_for('views.home'))
-    return render_template('register.html', form=form)

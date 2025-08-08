@@ -8,7 +8,7 @@ print("Loading forms.py from:", __file__)
 class RegisterForm(FlaskForm):
     name = StringField('Full Name', validators=[InputRequired(), Length(min=2, max=50)])
     email = StringField('Email', validators=[InputRequired(), Email()])
-    username = StringField('Username', validators=[InputRequired(), Length(min=4, max=20)])
+    username = StringField('Username', validators=[Optional(), Length(min=4, max=20)])
     password = PasswordField('Password', validators=[InputRequired(), Length(min=8)])
     confirm_password = PasswordField('Confirm Password', validators=[
         InputRequired(),
@@ -42,7 +42,7 @@ class TaskForm(FlaskForm):
             raise ValidationError("Due date cannot be in the past.")
 
 class ProfileUpdateForm(FlaskForm):
-    username = StringField('Username', validators=[InputRequired(), Length(min=4, max=20)])
+    username = StringField('Username', validators=[Optional(), Length(min=4, max=20)])
     email = StringField('Email', validators=[InputRequired(), Email()])
     profile_type = SelectField('Profile Type', choices=[('ADHD', 'ADHD'), ('Dyslexia', 'Dyslexia'), ('General', 'General')])
     submit = SubmitField('Update Profile')
