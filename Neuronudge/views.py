@@ -285,6 +285,14 @@ def task_search():
     else:
         return render_template('task_search.html')
 
+@views.route('/tasks')
+@login_required
+def task_list():
+    # For example, list all tasks with pagination or filters
+    page = request.args.get('page', 1, type=int)
+    tasks = Task.query.filter_by(user_id=current_user.id).paginate(page=page, per_page=10)
+    return render_template('task_list.html', tasks=tasks)
+
 # Custom error handlers
 @views.app_errorhandler(404)
 def page_not_found(e):
