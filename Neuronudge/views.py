@@ -31,29 +31,30 @@ def dashboard():
     # Filtering params
     filter_status = request.args.get('status', 'all')  # all, completed, pending
     filter_priority = request.args.get('priority', 'all')  # all, 1,2,3
+    search_term = request.args.get('search', '').strip()
 
-    # Base query
-    query = Task.query.filter_by(user_id=current_user.id)
+    # Base query (shared for counts and list)
+    base_query = Task.query.filter_by(user_id=current_user.id)
 
+    # Apply filters
     if filter_status == 'completed':
-        query = query.filter_by(completed=True)
+        base_query = base_query.filter_by(completed=True)
     elif filter_status == 'pending':
-        query = query.filter_by(completed=False)
+        base_query = base_query.filter_by(completed=False)
 
     if filter_priority in ['1', '2', '3']:
-        query = query.filter_by(priority=int(filter_priority))
+        base_query = base_query.filter_by(priority=int(filter_priority))
 
-    # Search functionality
-    search_term = request.args.get('search', '').strip()
     if search_term:
-        query = query.filter(Task.title.ilike(f'%{search_term}%'))
+        base_query = base_query.filter(Task.title.ilike(f'%{search_term}%'))
 
-    # Ordering: priority asc, due date asc with nulls last
-    tasks = query.order_by(Task.priority.asc(), Task.due_date.asc().nulls_last()).paginate(page=page, per_page=per_page)
+    # Paginated task list
+    paginated_tasks = base_query.order_by(
+        Task.priority.asc(),
+        Task.due_date.asc().nulls_last()
+    ).paginate(page=page, per_page=per_page)
 
-    onboarding = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
-
-    # Calculate task counts needed for dashboard summary cards
+    # Counts (reusing base query without pagination)
     total_tasks = Task.query.filter_by(user_id=current_user.id).count()
     pending_tasks = Task.query.filter_by(user_id=current_user.id, completed=False).count()
     completed_tasks = Task.query.filter_by(user_id=current_user.id, completed=True).count()
@@ -71,9 +72,17 @@ def dashboard():
         'overdue': overdue_tasks
     }
 
-    return render_template('dashboard.html', tasks=tasks, onboarding=onboarding,
-                           filter_status=filter_status, filter_priority=filter_priority, search_term=search_term,
-                           task_counts=task_counts)
+    onboarding = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
+
+    return render_template(
+        'dashboard.html',
+        tasks=paginated_tasks,
+        onboarding=onboarding,
+        filter_status=filter_status,
+        filter_priority=filter_priority,
+        search_term=search_term,
+        task_counts=task_counts
+    )
 
 @views.route('/onboarding', methods=['GET', 'POST'])
 @login_required
