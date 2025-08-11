@@ -5,5 +5,7 @@
             "envManager": "ms-python.python:venv",
             "packageManager": "ms-python.python:pip"
         }
-    ]
+    ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/6f618ef4-c887-4502-b83b-668c88858be4/resourceGroups/Neuronudge_group/providers/Microsoft.Web/sites/Neuronudge",
+    "appService.deploySubpath": "."
 }
