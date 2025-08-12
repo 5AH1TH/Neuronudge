@@ -33,7 +33,7 @@ def dashboard():
     filter_priority = request.args.get('priority', 'all')  # all, 1,2,3
     search_term = request.args.get('search', '').strip()
 
-    # Base query (shared for counts and list)
+    # Base query (shared for pagination)
     base_query = Task.query.filter_by(user_id=current_user.id)
 
     # Apply filters
@@ -48,13 +48,13 @@ def dashboard():
     if search_term:
         base_query = base_query.filter(Task.title.ilike(f'%{search_term}%'))
 
-    # Paginated task list
+    # Paginated tasks (if you use them elsewhere)
     paginated_tasks = base_query.order_by(
         Task.priority.asc(),
         Task.due_date.asc().nulls_last()
     ).paginate(page=page, per_page=per_page)
 
-    # Counts (reusing base query without pagination)
+    # Counts (use full user tasks without filters)
     total_tasks = Task.query.filter_by(user_id=current_user.id).count()
     pending_tasks = Task.query.filter_by(user_id=current_user.id, completed=False).count()
     completed_tasks = Task.query.filter_by(user_id=current_user.id, completed=True).count()
@@ -72,11 +72,17 @@ def dashboard():
         'overdue': overdue_tasks
     }
 
+    # Query recent_tasks separately for dashboard table (limit 10)
+    recent_tasks = Task.query.filter_by(user_id=current_user.id).order_by(
+        Task.priority.asc(),
+        Task.due_date.asc().nulls_last()
+    ).limit(10).all()
+
     onboarding = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
 
     return render_template(
         'dashboard.html',
-        tasks=paginated_tasks,
+        recent_tasks=recent_tasks,  # pass recent_tasks for your dashboard.html
         onboarding=onboarding,
         filter_status=filter_status,
         filter_priority=filter_priority,
