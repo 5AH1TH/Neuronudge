@@ -1,6 +1,6 @@
 ﻿from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, TextAreaField, BooleanField, DateField, IntegerField
-from wtforms.validators import InputRequired, Email, Length, Optional, NumberRange, ValidationError, EqualTo
+from wtforms.validators import InputRequired, Email, Length, Optional, NumberRange, ValidationError, EqualTo, DataRequired
 from datetime import date
 
 print("Loading forms.py from:", __file__)
@@ -24,8 +24,27 @@ class LoginForm(FlaskForm):
     remember_me = BooleanField('Remember Me')
 
 class OnboardingForm(FlaskForm):
-    preference = TextAreaField('What would help you focus better?', validators=[Length(max=500)])
-    completed = BooleanField('I have completed the onboarding process.')
+    focus_time = IntegerField(
+        'Preferred Focus Time (minutes)',
+        validators=[
+            DataRequired(message="Please enter your preferred focus time."),
+            NumberRange(min=5, max=180, message="Focus time must be between 5 and 180 minutes.")
+        ]
+    )
+
+    break_time = IntegerField(
+        'Preferred Break Time (minutes)',
+        validators=[
+            DataRequired(message="Please enter your preferred break time."),
+            NumberRange(min=1, max=60, message="Break time must be between 1 and 60 minutes.")
+        ]
+    )
+
+    notifications_enabled = BooleanField(
+        'Enable Notifications',
+        default=False
+    )
+
     submit = SubmitField('Save Preferences')
 
 class TaskForm(FlaskForm):
