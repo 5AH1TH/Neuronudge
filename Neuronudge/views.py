@@ -95,21 +95,34 @@ def dashboard():
 def onboarding():
     form = OnboardingForm()
     existing = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
+    
     if form.validate_on_submit():
         if existing:
-            existing.preference = form.preference.data
-            existing.completed = form.completed.data
+            existing.focus_time = form.focus_time.data
+            existing.break_time = form.break_time.data
+            existing.notifications_enabled = form.notifications_enabled.data
         else:
-            new_pref = OnboardingPreferences(preference=form.preference.data, user_id=current_user.id, completed=form.completed.data)
+            new_pref = OnboardingPreferences(
+                focus_time=form.focus_time.data,
+                break_time=form.break_time.data,
+                notifications_enabled=form.notifications_enabled.data,
+                user_id=current_user.id
+                
+            )
             db.session.add(new_pref)
         db.session.commit()
         flash("Preferences saved!", category='success')
         log_action(current_user.id, "Updated onboarding preferences")
         return redirect(url_for('views.dashboard'))
+    
     if existing:
-        form.preference.data = existing.preference
-        form.completed.data = existing.completed
+        form.focus_time.data = existing.focus_time
+        form.break_time.data = existing.break_time
+        form.notifications_enabled.data = existing.notifications_enabled
+
     return render_template('onboarding.html', form=form)
+    return render_template('onboarding.html', form=form)
+
 
 @views.route('/task/new', methods=['GET', 'POST'])
 @login_required

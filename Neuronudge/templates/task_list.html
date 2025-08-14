@@ -40,7 +40,7 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
-                            <a href="{{ url_for('views.task_edit', task_id=task.id) }}" class="btn btn-sm btn-outline-primary" aria-label="Edit task {{ task.title }}">
+                            <a href="{{ url_for('views.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary" aria-label="Edit task {{ task.title }}">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </a>
                             <button type="button" class="btn btn-sm btn-outline-danger btn-delete-task" data-task-id="{{ task.id }}" aria-label="Delete task {{ task.title }}">

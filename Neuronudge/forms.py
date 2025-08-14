@@ -75,3 +75,21 @@ class PasswordChangeForm(FlaskForm):
     def validate_confirm_password(self, field):
         if field.data != self.new_password.data:
             raise ValidationError("New passwords must match.")
+
+class PreferencesForm(FlaskForm):
+    focus_time = IntegerField(
+        "Preferred Focus Time (minutes)",
+        validators=[
+            DataRequired(),
+            NumberRange(min=5, max=180, message="Focus time must be between 5 and 180 minutes.")
+        ]
+    )
+    break_time = IntegerField(
+        "Preferred Break Time (minutes)",
+        validators=[
+            DataRequired(),
+            NumberRange(min=1, max=60, message="Break time must be between 1 and 60 minutes.")
+        ]
+    )
+    notifications_enabled = BooleanField("Enable Notifications")
+    submit = SubmitField("Save Preferences")
