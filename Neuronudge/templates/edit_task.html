@@ -1,70 +1,54 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<section aria-labelledby="taskEditHeading" class="my-5">
-    <div class="container" style="max-width: 600px;">
-        <h1 id="taskEditHeading" class="mb-4 display-5 text-primary text-center">Edit Task: {{ task.title }}</h1>
+<h2>Edit Task: {{ task.title }}</h2>
 
-        <!-- FIX: use id=task.id (your route arg is named 'id') -->
-        <form method="POST" action="{{ url_for('views.edit_task', id=task.id) }}" novalidate role="form" aria-describedby="taskEditHelp">
-            {{ form.hidden_tag() }}
+<form method="POST" action="{{ url_for('views.edit_task', id=task.id) }}">
+    {{ form.hidden_tag() }}
 
-            <div class="mb-3">
-                <label for="title" class="form-label">Task Title</label>
-                {{ form.title(class="form-control", id="title", aria_required="true", autofocus=True) }}
-                {% if form.title.errors %}
-                    <div class="invalid-feedback d-block">
-                        {% for error in form.title.errors %}
-                            {{ error }}
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </div>
-
-            <div class="mb-3">
-                <label for="description" class="form-label">Description (optional)</label>
-                {{ form.description(class="form-control", id="description", rows="4") }}
-                {% if form.description.errors %}
-                    <div class="invalid-feedback d-block">
-                        {% for error in form.description.errors %}
-                            {{ error }}
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </div>
-
-            <div class="mb-3">
-                <label for="due_date" class="form-label">Due Date</label>
-                {{ form.due_date(class="form-control", id="due_date", type="date") }}
-                {% if form.due_date.errors %}
-                    <div class="invalid-feedback d-block">
-                        {% for error in form.due_date.errors %}
-                            {{ error }}
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </div>
-
-            <div class="mb-3">
-                <label for="priority" class="form-label">Priority</label>
-                {{ form.priority(class="form-select", id="priority", aria_required="true") }}
-                {% if form.priority.errors %}
-                    <div class="invalid-feedback d-block">
-                        {% for error in form.priority.errors %}
-                            {{ error }}
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </div>
-
-            <div class="form-check mb-4">
-                {{ form.completed(class="form-check-input", id="completed") }}
-                <label class="form-check-label" for="completed">Mark as Completed</label>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100" aria-label="Save task changes">Save Changes</button>
-            <a href="{{ url_for('views.dashboard') }}" class="btn btn-outline-secondary mt-2 w-100" aria-label="Cancel and return to dashboard">Cancel</a>
-        </form>
+    <div>
+        {{ form.title.label }}<br>
+        {{ form.title(size=40) }}
+        {% for error in form.title.errors %}
+            <div style="color: red;">{{ error }}</div>
+        {% endfor %}
     </div>
-</section>
+
+    <div>
+        {{ form.description.label }}<br>
+        {{ form.description(rows=4, cols=40) }}
+        {% for error in form.description.errors %}
+            <div style="color: red;">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.due_date.label }}<br>
+        {{ form.due_date(type="date") }}
+        {% for error in form.due_date.errors %}
+            <div style="color: red;">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.priority.label }}<br>
+        {{ form.priority() }}
+        {% for error in form.priority.errors %}
+            <div style="color: red;">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div>
+        {{ form.status.label }}<br>
+        {{ form.status() }}
+        {% for error in form.status.errors %}
+            <div style="color: red;">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div style="margin-top: 15px;">
+        <button type="submit">Update Task</button>
+        <a href="{{ url_for('views.dashboard') }}">Cancel</a>
+    </div>
+</form>
 {% endblock %}

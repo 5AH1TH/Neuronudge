@@ -57,8 +57,13 @@ class TaskForm(FlaskForm):
         ('medium', 'Medium'),
         ('high', 'High')
     ])
+
     reminder_set = BooleanField('Set Reminder')
     submit = SubmitField('Save Task')
+    status = SelectField('Status', choices=[
+        ('pending', 'Pending'),
+        ('completed', 'Completed')
+    ])
 
     def validate_due_date(self, field):
         if field.data and field.data < date.today():

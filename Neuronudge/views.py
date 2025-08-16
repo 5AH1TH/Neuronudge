@@ -9,6 +9,14 @@ import logging
 
 views = Blueprint('views', __name__)
 
+priority_map = {
+    'low': 1,
+    'medium': 2,
+    'high': 3
+}
+
+reverse_priority_map = {v: k for k, v in priority_map.items()}
+
 # Set up a logger for audit trail (simple console logging here)
 logger = logging.getLogger('neuronudge.audit')
 if not logger.hasHandlers():
@@ -24,19 +32,15 @@ def log_action(user_id, action):
 @views.route('/dashboard')
 @login_required
 def dashboard():
-    # Pagination params
     page = request.args.get('page', 1, type=int)
     per_page = 10
 
-    # Filtering params
-    filter_status = request.args.get('status', 'all')  # all, completed, pending
-    filter_priority = request.args.get('priority', 'all')  # all, 1,2,3
+    filter_status = request.args.get('status', 'all')
+    filter_priority = request.args.get('priority', 'all')
     search_term = request.args.get('search', '').strip()
 
-    # Base query (shared for pagination)
     base_query = Task.query.filter_by(user_id=current_user.id)
 
-    # Apply filters
     if filter_status == 'completed':
         base_query = base_query.filter_by(completed=True)
     elif filter_status == 'pending':
@@ -48,13 +52,11 @@ def dashboard():
     if search_term:
         base_query = base_query.filter(Task.title.ilike(f'%{search_term}%'))
 
-    # Paginated tasks (if you use them elsewhere)
     paginated_tasks = base_query.order_by(
         Task.priority.asc(),
         Task.due_date.asc().nulls_last()
     ).paginate(page=page, per_page=per_page)
 
-    # Counts (use full user tasks without filters)
     total_tasks = Task.query.filter_by(user_id=current_user.id).count()
     pending_tasks = Task.query.filter_by(user_id=current_user.id, completed=False).count()
     completed_tasks = Task.query.filter_by(user_id=current_user.id, completed=True).count()
@@ -72,7 +74,6 @@ def dashboard():
         'overdue': overdue_tasks
     }
 
-    # Query recent_tasks separately for dashboard table (limit 10)
     recent_tasks = Task.query.filter_by(user_id=current_user.id).order_by(
         Task.priority.asc(),
         Task.due_date.asc().nulls_last()
@@ -119,31 +120,44 @@ def onboarding():
         form.break_time.data = existing.break_time
         form.notifications_enabled.data = existing.notifications_enabled
 
-    # FIX: remove duplicate return
     return render_template('onboarding.html', form=form)
 
 @views.route('/task/new', methods=['GET', 'POST'])
 @login_required
 def create_task():
     form = TaskForm()
-    if form.validate_on_submit():
+    if form.validate_on_submit():  # start of form submission check
+
+        # Map priority strings to integers
+        priority_map = {'high': 1, 'medium': 2, 'low': 3}  # High = 1, Low = 3
+
         new_task = Task(
             title=form.title.data,
             description=form.description.data,
-            completed=form.completed.data,
+            completed=True if getattr(form, 'status', None) and form.status.data == 'completed' else False,
             due_date=form.due_date.data,
-            # keep integers 1/2/3 system-wide
-            priority=int(form.priority.data),
+            priority=priority_map[form.priority.data],
             reminder_set=form.reminder_set.data,
             user_id=current_user.id
         )
+
+        # Handle completed status if you added 'status' field
+        if hasattr(form, 'status'):
+            new_task.completed = True if form.status.data == 'completed' else False
+        else:
+            # fallback if using the checkbox in your form
+            new_task.completed = form.completed.data
+
         db.session.add(new_task)
         db.session.commit()
+
         flash("Task added successfully!", category='success')
         log_action(current_user.id, f"Created task: {new_task.title}")
         return redirect(url_for('views.dashboard'))
-    # FIX: render the actual create template name you have
+
     return render_template('create_task.html', form=form)
+
+
 
 @views.route('/task/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -154,33 +168,42 @@ def edit_task(id):
         abort(403)
 
     form = TaskForm(obj=task)
-    if form.validate_on_submit():
+    if form.validate_on_submit():  # <-- start of form submission check
         old_title = task.title
         task.title = form.title.data
         task.description = form.description.data
         task.completed = form.completed.data
         task.due_date = form.due_date.data
-        task.priority = int(form.priority.data)   # keep as int
+        task.priority = priority_map[form.priority.data]
         task.reminder_set = form.reminder_set.data
         db.session.commit()
+        task.priority = priority_map[form.priority.data]
         flash("Task updated successfully!", category='success')
         log_action(current_user.id, f"Edited task from '{old_title}' to '{task.title}'")
         return redirect(url_for('views.dashboard'))
-    # FIX: render your edit template AND pass 'task' since the template uses it
     return render_template('edit_task.html', form=form, task=task)
+
 
 @views.route('/task/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_task(id):
     task = Task.query.get_or_404(id)
+
+    # make sure user owns the task
     if task.user_id != current_user.id:
-        flash("Unauthorized deletion.", category='error')
+        flash("Unauthorized access.", category='error')
         abort(403)
-    db.session.delete(task)
-    db.session.commit()
-    flash("Task deleted.", category='info')
-    log_action(current_user.id, f"Deleted task: {task.title}")
+
+    try:
+        db.session.delete(task)
+        db.session.commit()
+        flash("Task deleted successfully!", category='success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting task: {str(e)}", category='error')
+
     return redirect(url_for('views.dashboard'))
+
 
 @views.route('/tasks/export')
 @login_required
