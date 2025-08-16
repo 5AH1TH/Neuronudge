@@ -52,7 +52,11 @@ class TaskForm(FlaskForm):
     description = TextAreaField('Description', validators=[Optional(), Length(max=1000)])
     completed = BooleanField('Completed')
     due_date = DateField('Due Date', format='%Y-%m-%d', validators=[Optional()])
-    priority = SelectField('Priority', choices=[('1', 'High'), ('2', 'Medium'), ('3', 'Low')], default='3')
+    priority = SelectField('Priority', choices=[
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High')
+    ])
     reminder_set = BooleanField('Set Reminder')
     submit = SubmitField('Save Task')
 

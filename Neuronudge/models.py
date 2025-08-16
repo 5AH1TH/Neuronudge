@@ -32,7 +32,7 @@ class Task(db.Model):
     description = db.Column(db.Text)
     due_date = db.Column(db.DateTime)
     completed = db.Column(db.Boolean, default=False)
-    priority = db.Column(db.Integer, default=3)         # 1 = high, 2 = med, 3 = low
+    priority = db.Column(db.String, default=3)         # 1 = high, 2 = med, 3 = low
     reminder_set = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

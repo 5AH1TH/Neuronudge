@@ -5,7 +5,8 @@
     <div class="container" style="max-width: 600px;">
         <h1 id="taskEditHeading" class="mb-4 display-5 text-primary text-center">Edit Task: {{ task.title }}</h1>
 
-        <form method="POST" action="{{ url_for('views.edit_task', task_id=task.id) }}" novalidate role="form" aria-describedby="taskEditHelp">
+        <!-- FIX: use id=task.id (your route arg is named 'id') -->
+        <form method="POST" action="{{ url_for('views.edit_task', id=task.id) }}" novalidate role="form" aria-describedby="taskEditHelp">
             {{ form.hidden_tag() }}
 
             <div class="mb-3">

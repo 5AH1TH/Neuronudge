@@ -82,7 +82,7 @@ def dashboard():
 
     return render_template(
         'dashboard.html',
-        recent_tasks=recent_tasks,  # pass recent_tasks for your dashboard.html
+        recent_tasks=recent_tasks,
         onboarding=onboarding,
         filter_status=filter_status,
         filter_priority=filter_priority,
@@ -107,7 +107,6 @@ def onboarding():
                 break_time=form.break_time.data,
                 notifications_enabled=form.notifications_enabled.data,
                 user_id=current_user.id
-                
             )
             db.session.add(new_pref)
         db.session.commit()
@@ -120,9 +119,8 @@ def onboarding():
         form.break_time.data = existing.break_time
         form.notifications_enabled.data = existing.notifications_enabled
 
+    # FIX: remove duplicate return
     return render_template('onboarding.html', form=form)
-    return render_template('onboarding.html', form=form)
-
 
 @views.route('/task/new', methods=['GET', 'POST'])
 @login_required
@@ -134,6 +132,7 @@ def create_task():
             description=form.description.data,
             completed=form.completed.data,
             due_date=form.due_date.data,
+            # keep integers 1/2/3 system-wide
             priority=int(form.priority.data),
             reminder_set=form.reminder_set.data,
             user_id=current_user.id
@@ -143,7 +142,8 @@ def create_task():
         flash("Task added successfully!", category='success')
         log_action(current_user.id, f"Created task: {new_task.title}")
         return redirect(url_for('views.dashboard'))
-    return render_template('task_form.html', form=form)
+    # FIX: render the actual create template name you have
+    return render_template('create_task.html', form=form)
 
 @views.route('/task/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -160,13 +160,14 @@ def edit_task(id):
         task.description = form.description.data
         task.completed = form.completed.data
         task.due_date = form.due_date.data
-        task.priority = int(form.priority.data)
+        task.priority = int(form.priority.data)   # keep as int
         task.reminder_set = form.reminder_set.data
         db.session.commit()
         flash("Task updated successfully!", category='success')
         log_action(current_user.id, f"Edited task from '{old_title}' to '{task.title}'")
         return redirect(url_for('views.dashboard'))
-    return render_template('task_form.html', form=form)
+    # FIX: render your edit template AND pass 'task' since the template uses it
+    return render_template('edit_task.html', form=form, task=task)
 
 @views.route('/task/delete/<int:id>', methods=['POST'])
 @login_required
@@ -316,7 +317,6 @@ def task_search():
 @views.route('/tasks')
 @login_required
 def task_list():
-    # For example, list all tasks with pagination or filters
     page = request.args.get('page', 1, type=int)
     tasks = Task.query.filter_by(user_id=current_user.id).paginate(page=page, per_page=10)
     return render_template('task_list.html', tasks=tasks)
@@ -337,4 +337,3 @@ def internal_server_error(e):
 @views.route('/')
 def home():
     return render_template('home.html', title='Home')
-
