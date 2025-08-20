@@ -6,13 +6,15 @@ from .forms import OnboardingForm, TaskForm, ProfileUpdateForm, PasswordChangeFo
 from datetime import datetime
 from werkzeug.security import check_password_hash, generate_password_hash
 import logging
+import pytz
+from datetime import timedelta
 
 views = Blueprint('views', __name__)
 
 priority_map = {
-    'low': 1,
+    'high': 1,
     'medium': 2,
-    'high': 3
+    'low': 3
 }
 
 reverse_priority_map = {v: k for k, v in priority_map.items()}
@@ -127,16 +129,40 @@ def onboarding():
 def create_task():
     form = TaskForm()
     if form.validate_on_submit():  # start of form submission check
+        # DISALLOW past due dates on CREATE (edit route will allow)
+        if form.due_date.data and form.due_date.data < datetime.utcnow():
+            flash("Due date cannot be in the past when creating a task.", category='error')
+            return render_template('create_task.html', form=form)
 
-        # Map priority strings to integers
-        priority_map = {'high': 1, 'medium': 2, 'low': 3}  # High = 1, Low = 3
+        prefs = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
+
+        # If no due_date provided, use onboarding focus_time to suggest a default
+        computed_due = form.due_date.data
+        if not computed_due and prefs:
+            # Use user's timezone if provided, but store as UTC-naive for consistency with existing code
+            try:
+                tz = pytz.timezone(prefs.timezone or 'UTC')
+            except Exception:
+                tz = pytz.timezone('UTC')
+            now_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
+            now_local = now_utc.astimezone(tz)
+            local_due = now_local + timedelta(minutes=int(prefs.focus_time or 25))
+            computed_due = local_due.astimezone(pytz.UTC).replace(tzinfo=None)
+        # If still None (no prefs), just leave as None
+
+        # --- PRIORITY FIX (accepts 'high'/'medium'/'low' or 1/2/3 safely) ---
+        pr_val = form.priority.data
+        if isinstance(pr_val, int):
+            resolved_priority = pr_val
+        else:
+            resolved_priority = priority_map.get(str(pr_val).lower(), 3)
 
         new_task = Task(
             title=form.title.data,
             description=form.description.data,
             completed=True if getattr(form, 'status', None) and form.status.data == 'completed' else False,
-            due_date=form.due_date.data,
-            priority=priority_map[form.priority.data],
+            due_date=computed_due,
+            priority=resolved_priority,  # <-- use resolved value
             reminder_set=form.reminder_set.data,
             user_id=current_user.id
         )
@@ -158,7 +184,6 @@ def create_task():
     return render_template('create_task.html', form=form)
 
 
-
 @views.route('/task/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_task(id):
@@ -168,20 +193,37 @@ def edit_task(id):
         abort(403)
 
     form = TaskForm(obj=task)
+
+    # Preload priority as string value for the select (use reverse map)
+    if request.method == 'GET' and hasattr(form, 'priority'):
+        try:
+            form.priority.data = reverse_priority_map.get(task.priority, 'medium')
+        except Exception:
+            form.priority.data = 'medium'
+
     if form.validate_on_submit():  # <-- start of form submission check
         old_title = task.title
         task.title = form.title.data
         task.description = form.description.data
         task.completed = form.completed.data
+
+        # ALLOW past dates here (only edit)
         task.due_date = form.due_date.data
-        task.priority = priority_map[form.priority.data]
+
+        # --- PRIORITY FIX (accepts 'high'/'medium'/'low' or 1/2/3 safely) ---
+        pr_val = form.priority.data
+        if isinstance(pr_val, int):
+            task.priority = pr_val
+        else:
+            task.priority = priority_map.get(str(pr_val).lower(), 3)
+
         task.reminder_set = form.reminder_set.data
         db.session.commit()
-        task.priority = priority_map[form.priority.data]
         flash("Task updated successfully!", category='success')
         log_action(current_user.id, f"Edited task from '{old_title}' to '{task.title}'")
         return redirect(url_for('views.dashboard'))
     return render_template('edit_task.html', form=form, task=task)
+
 
 
 @views.route('/task/delete/<int:id>', methods=['POST'])
