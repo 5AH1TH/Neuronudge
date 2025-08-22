@@ -346,27 +346,25 @@ def bulk_delete():
 @views.route('/tasks/search', methods=['GET', 'POST'])
 @login_required
 def task_search():
-    if request.method == 'POST':
-        title = request.form.get('title', '').strip()
-        description = request.form.get('description', '').strip()
-        completed = request.form.get('completed', 'any')
-        priority = request.form.get('priority', 'any')
+    title = request.args.get('title', '').strip()
+    description = request.args.get('description', '').strip()
+    completed = request.args.get('completed', 'any')
+    priority = request.args.get('priority', 'any')
 
-        query = Task.query.filter_by(user_id=current_user.id)
+    query = Task.query.filter_by(user_id=current_user.id)
 
-        if title:
-            query = query.filter(Task.title.ilike(f'%{title}%'))
-        if description:
-            query = query.filter(Task.description.ilike(f'%{description}%'))
-        if completed in ['true', 'false']:
-            query = query.filter_by(completed=(completed == 'true'))
-        if priority in ['1', '2', '3']:
-            query = query.filter_by(priority=int(priority))
+    if title:
+        query = query.filter(Task.title.ilike(f'%{title}%'))
+    if description:
+        query = query.filter(Task.description.ilike(f'%{description}%'))
+    if completed in ['true', 'false']:
+        query = query.filter_by(completed=(completed == 'true'))
+    if priority in ['1', '2', '3']:
+        query = query.filter_by(priority=int(priority))
 
-        results = query.order_by(Task.priority.asc(), Task.due_date.asc().nulls_last()).all()
-        return render_template('task_search_results.html', tasks=results)
-    else:
-        return render_template('task_search.html')
+    results = query.order_by(Task.priority.asc(), Task.due_date.asc().nulls_last()).all()
+
+    return render_template('task_search.html', results=results)
 
 @views.route('/tasks')
 @login_required
