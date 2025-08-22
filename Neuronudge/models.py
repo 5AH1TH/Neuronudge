@@ -1,8 +1,10 @@
 # Neuronudge/models.py
-from datetime import datetime
+from datetime import datetime, time
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
 from flask_login import UserMixin
+from wtforms import SelectField
+from wtforms.validators import DataRequired
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -40,6 +42,13 @@ class Task(db.Model):
 
     def __repr__(self):
         return f"<Task {self.title}>"
+    def full_due_datetime(self):
+        """Return combined due date + time as datetime object."""
+        from datetime import datetime
+        if self.due_time:
+            return datetime.combine(self.due_date, self.due_time)
+        else:
+            return datetime.combine(self.due_date, time(11, 59))
 
 class ActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)

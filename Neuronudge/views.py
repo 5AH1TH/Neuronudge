@@ -41,6 +41,7 @@ def dashboard():
     filter_priority = request.args.get('priority', 'all')
     search_term = request.args.get('search', '').strip()
 
+    # Base query for all tasks owned by the current user
     base_query = Task.query.filter_by(user_id=current_user.id)
 
     if filter_status == 'completed':
@@ -53,6 +54,8 @@ def dashboard():
 
     if search_term:
         base_query = base_query.filter(Task.title.ilike(f'%{search_term}%'))
+
+    tasks = base_query.all()
 
     paginated_tasks = base_query.order_by(
         Task.priority.asc(),
@@ -85,12 +88,14 @@ def dashboard():
 
     return render_template(
         'dashboard.html',
+        tasks=tasks,   # 👈 now available in template
         recent_tasks=recent_tasks,
         onboarding=onboarding,
         filter_status=filter_status,
         filter_priority=filter_priority,
         search_term=search_term,
-        task_counts=task_counts
+        task_counts=task_counts,
+        paginated_tasks=paginated_tasks
     )
 
 @views.route('/onboarding', methods=['GET', 'POST'])
@@ -128,51 +133,36 @@ def onboarding():
 @login_required
 def create_task():
     form = TaskForm()
-    if form.validate_on_submit():  # start of form submission check
-        # DISALLOW past due dates on CREATE (edit route will allow)
-        if form.due_date.data and form.due_date.data < datetime.utcnow():
-            flash("Due date cannot be in the past when creating a task.", category='error')
-            return render_template('create_task.html', form=form)
-
+    if form.validate_on_submit():
         prefs = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
 
-        # If no due_date provided, use onboarding focus_time to suggest a default
-        computed_due = form.due_date.data
-        if not computed_due and prefs:
-            # Use user's timezone if provided, but store as UTC-naive for consistency with existing code
-            try:
-                tz = pytz.timezone(prefs.timezone or 'UTC')
-            except Exception:
-                tz = pytz.timezone('UTC')
-            now_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
-            now_local = now_utc.astimezone(tz)
-            local_due = now_local + timedelta(minutes=int(prefs.focus_time or 25))
-            computed_due = local_due.astimezone(pytz.UTC).replace(tzinfo=None)
-        # If still None (no prefs), just leave as None
-
-        # --- PRIORITY FIX (accepts 'high'/'medium'/'low' or 1/2/3 safely) ---
-        pr_val = form.priority.data
-        if isinstance(pr_val, int):
-            resolved_priority = pr_val
+        computed_due = None
+        if form.due_date.data:
+            computed_due = datetime.combine(
+                form.due_date.data - timedelta(days=1),
+                datetime.strptime("11:59", "%H:%M").time()
+            )
         else:
-            resolved_priority = priority_map.get(str(pr_val).lower(), 3)
+            if prefs:
+                try:
+                    tz = pytz.timezone(prefs.timezone or 'UTC')
+                except Exception:
+                    tz = pytz.timezone('UTC')
+                now_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
+                now_local = now_utc.astimezone(tz)
+                local_due = now_local + timedelta(minutes=int(prefs.focus_time or 25))
+                computed_due = local_due.astimezone(pytz.UTC).replace(tzinfo=None)
 
+        # ✅ store priority as int, completed from status
         new_task = Task(
             title=form.title.data,
             description=form.description.data,
-            completed=True if getattr(form, 'status', None) and form.status.data == 'completed' else False,
+            completed=(form.status.data == "completed"),
             due_date=computed_due,
-            priority=resolved_priority,  # <-- use resolved value
+            priority=int(form.priority.data),   # force integer
             reminder_set=form.reminder_set.data,
             user_id=current_user.id
         )
-
-        # Handle completed status if you added 'status' field
-        if hasattr(form, 'status'):
-            new_task.completed = True if form.status.data == 'completed' else False
-        else:
-            # fallback if using the checkbox in your form
-            new_task.completed = form.completed.data
 
         db.session.add(new_task)
         db.session.commit()
@@ -182,6 +172,7 @@ def create_task():
         return redirect(url_for('views.dashboard'))
 
     return render_template('create_task.html', form=form)
+
 
 
 @views.route('/task/edit/<int:id>', methods=['GET', 'POST'])
@@ -194,34 +185,32 @@ def edit_task(id):
 
     form = TaskForm(obj=task)
 
-    # Preload priority as string value for the select (use reverse map)
-    if request.method == 'GET' and hasattr(form, 'priority'):
-        try:
-            form.priority.data = reverse_priority_map.get(task.priority, 'medium')
-        except Exception:
-            form.priority.data = 'medium'
+    if request.method == 'GET':
+        form.priority.data = str(task.priority)   # preload as string for SelectField
+        form.status.data = "completed" if task.completed else "not_started"
 
-    if form.validate_on_submit():  # <-- start of form submission check
+    if form.validate_on_submit():
         old_title = task.title
         task.title = form.title.data
         task.description = form.description.data
-        task.completed = form.completed.data
+        task.completed = (form.status.data == "completed")
 
-        # ALLOW past dates here (only edit)
-        task.due_date = form.due_date.data
+        if form.due_date.data:
+            task.due_date = datetime.combine(
+                form.due_date.data - timedelta(days=1),
+                datetime.strptime("11:59", "%H:%M").time()
+            )
 
-        # --- PRIORITY FIX (accepts 'high'/'medium'/'low' or 1/2/3 safely) ---
-        pr_val = form.priority.data
-        if isinstance(pr_val, int):
-            task.priority = pr_val
-        else:
-            task.priority = priority_map.get(str(pr_val).lower(), 3)
-
+        # ✅ store priority as int
+        task.priority = int(form.priority.data)
         task.reminder_set = form.reminder_set.data
+
         db.session.commit()
+
         flash("Task updated successfully!", category='success')
         log_action(current_user.id, f"Edited task from '{old_title}' to '{task.title}'")
         return redirect(url_for('views.dashboard'))
+
     return render_template('edit_task.html', form=form, task=task)
 
 

@@ -3,7 +3,7 @@
 
 {% block content %}
 <h1>Search Your Tasks</h1>
-<form method="GET" action="{{ url_for('views.task_search_results') }}" role="search" aria-label="Search Tasks">
+<form method="GET" action="{{ url_for('views.task_search') }}" role="search" aria-label="Search Tasks">
     <label for="query">Enter keywords to search in task titles or descriptions:</label><br />
     <input
         type="search"

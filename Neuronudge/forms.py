@@ -1,8 +1,10 @@
 ﻿from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, TextAreaField, BooleanField, DateField, IntegerField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, TextAreaField, BooleanField, DateField, IntegerField, TimeField
 from wtforms.validators import InputRequired, Email, Length, Optional, NumberRange, ValidationError, EqualTo, DataRequired
-from datetime import date
+from datetime import date, time, timedelta
 
+
+#estimated_time = IntegerField("Estimated Time (minutes)", validators=[Optional()])
 print("Loading forms.py from:", __file__)
 
 class RegisterForm(FlaskForm):
@@ -48,27 +50,47 @@ class OnboardingForm(FlaskForm):
     submit = SubmitField('Save Preferences')
 
 class TaskForm(FlaskForm):
-    title = StringField('Title', validators=[InputRequired(), Length(max=100)])
-    description = TextAreaField('Description', validators=[Optional(), Length(max=1000)])
-    completed = BooleanField('Completed')
-    due_date = DateField('Due Date', format='%Y-%m-%d', validators=[Optional()])
-    priority = SelectField('Priority', choices=[
-        ('low', 'Low'),
-        ('medium', 'Medium'),
-        ('high', 'High')
-    ])
+    title = StringField("Title", validators=[DataRequired()])
+    description = TextAreaField("Description")
+    due_date = DateField("Due Date", validators=[DataRequired()])
+    due_time = TimeField("Due Time (optional)", validators=[Optional()])
+    submit = SubmitField("Save Task")
+    reminder_set = BooleanField("Set Reminder?")
 
-    reminder_set = BooleanField('Set Reminder')
-    submit = SubmitField('Save Task')
-    status = SelectField('Status', choices=[
-        ('pending', 'Pending'),
-        ('completed', 'Completed')
-    ])
+    priority = SelectField(
+    "Priority",
+    choices=[
+        ("1", "High"),
+        ("2", "Medium"),
+        ("3", "Low"),
+    ],
+    default="2",
+    validators=[DataRequired()]
+)
+    status = SelectField(
+        "Status",
+        choices=[("not_started", "Not Started"),
+                 ("in_progress", "In Progress"),
+                 ("completed", "Completed")],
+        default="not_started"
+    )
 
-    def validate_due_date(self, field):
-        if field.data and field.data < date.today():
-            raise ValidationError("Due date cannot be in the past.")
+    def validate(self, extra_validators=None):
+        """Custom validation for handling default time and past dates."""
+        initial_validation = super(TaskForm, self).validate(extra_validators)
+        if not initial_validation:
+            return False
 
+        # Handle missing due_time → default to 11:59 AM previous day
+        if not self.due_time.data:
+            default_time = time(11, 59)
+            self.due_time.data = default_time
+
+            # Shift date back by 1 day since time is "day before"
+            if self.due_date.data:
+                self.due_date.data = self.due_date.data - timedelta(days=1)
+
+        return True
 class ProfileUpdateForm(FlaskForm):
     username = StringField('Username', validators=[Optional(), Length(min=4, max=20)])
     email = StringField('Email', validators=[InputRequired(), Email()])

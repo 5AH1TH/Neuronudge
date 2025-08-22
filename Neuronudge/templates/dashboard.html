@@ -76,18 +76,17 @@
                             <td>{{ task.title }}</td>
                             <td>{{ task.due_date.strftime('%b %d, %Y') if task.due_date else 'No due date' }}</td>
                             <td>
-                                {# normalize priority to string lower-case, handles both numeric (1,2,3) and string values #}
-                                {% set ps = (task.priority ~ '')|lower %}
-                                {% if ps in ['1', 'high'] %}
+                                {% if task.priority == 1 %}
                                     <span class="badge bg-danger">High</span>
-                                {% elif ps in ['2', 'medium'] %}
+                                {% elif task.priority == 2 %}
                                     <span class="badge bg-warning text-dark">Medium</span>
-                                {% elif ps in ['3', 'low'] %}
+                                {% elif task.priority == 3 %}
                                     <span class="badge bg-secondary">Low</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">Low</span>
+                                    <span class="badge bg-secondary">Unknown</span>
                                 {% endif %}
                             </td>
+
                             <td>
                                 {% if task.completed %}
                                     <span class="badge bg-success">Completed</span>
