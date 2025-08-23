@@ -1,13 +1,15 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, abort
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, abort, current_app
 from flask_login import login_required, current_user
 from .models import Task, OnboardingPreferences, User
 from . import db
-from .forms import OnboardingForm, TaskForm, ProfileUpdateForm, PasswordChangeForm, RegisterForm
+from .forms import OnboardingForm, TaskForm, ProfileUpdateForm, PasswordChangeForm, RegisterForm, ChangePasswordForm
 from datetime import datetime
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 import logging
 import pytz
 from datetime import timedelta
+import os
 
 views = Blueprint('views', __name__)
 
@@ -30,6 +32,10 @@ logger.setLevel(logging.INFO)
 
 def log_action(user_id, action):
     logger.info(f'User {user_id} performed action: {action}')
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
 
 @views.route('/dashboard')
 @login_required
@@ -255,6 +261,7 @@ def export_tasks():
 @login_required
 def profile():
     form = ProfileUpdateForm(obj=current_user)
+    change_password_form = ChangePasswordForm()
     if form.validate_on_submit():
         user_by_email = User.query.filter(User.email == form.email.data, User.id != current_user.id).first()
         user_by_username = User.query.filter(User.username == form.username.data, User.id != current_user.id).first()
@@ -271,7 +278,7 @@ def profile():
             flash("Profile updated successfully.", category='success')
             log_action(current_user.id, f"Updated profile from username '{old_username}' to '{current_user.username}'")
             return redirect(url_for('views.profile'))
-    return render_template('profile.html', form=form)
+    return render_template('profile.html', form=form, change_password_form=change_password_form)
 
 @views.route('/change-password', methods=['GET', 'POST'])
 @login_required
@@ -372,6 +379,33 @@ def task_list():
     page = request.args.get('page', 1, type=int)
     tasks = Task.query.filter_by(user_id=current_user.id).paginate(page=page, per_page=10)
     return render_template('task_list.html', tasks=tasks)
+
+@views.route('/upload_avatar', methods=['POST'])
+@login_required
+def upload_avatar():
+    if 'avatar' not in request.files:
+        flash("No file part.", "danger")
+        return redirect(url_for('views.profile'))
+
+    file = request.files['avatar']
+    if file.filename == '':
+        flash("No selected file.", "warning")
+        return redirect(url_for('views.profile'))
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        # Save URL in DB (relative path for static serving)
+        current_user.avatar_url = url_for('static', filename=f'uploads/{filename}')
+        db.session.commit()
+
+        flash("Avatar updated successfully!", "success")
+        return redirect(url_for('views.profile'))
+
+    flash("Invalid file type. Allowed: png, jpg, jpeg, gif", "danger")
+    return redirect(url_for('views.profile'))
 
 # Custom error handlers
 @views.app_errorhandler(404)

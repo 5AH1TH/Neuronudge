@@ -5,6 +5,7 @@ from . import db
 from flask_login import UserMixin
 from wtforms import SelectField
 from wtforms.validators import DataRequired
+from flask import url_for
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -18,6 +19,8 @@ class User(UserMixin, db.Model):
     tasks = db.relationship('Task', backref='user', lazy=True)
     logs = db.relationship('ActivityLog', backref='user', lazy=True)
     preferences = db.relationship('OnboardingPreferences', back_populates='user', uselist=False)
+    avatar_url = db.Column(db.String(300), default=None)
+    registered_on = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -27,6 +30,9 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f"<User {self.username}>"
+    
+    def get_avatar(self):
+        return self.avatar_url or url_for('static', filename='img/default-avatar.png')
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
