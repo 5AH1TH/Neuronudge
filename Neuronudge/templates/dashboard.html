@@ -3,7 +3,7 @@
 {% block content %}
 
 <section aria-labelledby="dashboardHeading" class="my-5">
-    <div class="container">
+    <div class="container" id="dashboard-container">
         <h1 id="dashboardHeading" class="mb-4 display-4 text-primary">Dashboard</h1>
         <p class="lead">Welcome back, {{ current_user.name or current_user.email }}!</p>
 
@@ -86,7 +86,6 @@
                                     <span class="badge bg-secondary">Unknown</span>
                                 {% endif %}
                             </td>
-
                             <td>
                                 {% if task.completed %}
                                     <span class="badge bg-success">Completed</span>
@@ -95,6 +94,15 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
+                                <!-- NEW Start Task button -->
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-success start-task-btn"
+                                    data-task-id="{{ task.id }}"
+                                    data-task-title="{{ task.title }}"
+                                >
+                                    ▶ Start Task
+                                </button>
                                 <a href="{{ url_for('views.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary" aria-label="Edit task {{ task.title }}">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </a>
@@ -111,6 +119,35 @@
                     {% endif %}
                 </tbody>
             </table>
+        </div>
+
+        <!-- Timer + Form (hidden until Start Task pressed) -->
+        <div id="task-timer-section" class="mt-4" style="display:none;">
+            <div class="d-flex">
+                <!-- LEFT: form -->
+                <div class="flex-grow-1 me-3">
+                    <div class="card shadow-sm p-3">
+                        <h5>Set Task Duration</h5>
+                        <p id="selected-task-name" class="text-muted">No task selected</p>
+                        <label for="timeInput" class="form-label">Estimated Time (minutes)</label>
+                        <input type="number" id="timeInput" class="form-control" min="1" placeholder="e.g., 25">
+                        <button class="btn btn-success mt-2" id="start-timer">Start</button>
+                    </div>
+                </div>
+                <!-- RIGHT: timer -->
+                <div class="flex-shrink-0" style="width:35%;">
+                    <div class="card shadow-sm p-3">
+                        <h5 class="text-center">Task Timer</h5>
+                        <div id="timer-display" class="display-4 text-center">00:00</div>
+                        <div id="timer-status" class="text-center text-muted">Idle</div>
+                        <div class="d-flex justify-content-between gap-2 mt-3">
+                            <button class="btn btn-warning flex-fill" id="pause-timer">⏸ Pause</button>
+                            <button class="btn btn-primary flex-fill" id="resume-timer">▶ Resume</button>
+                            <button class="btn btn-danger flex-fill" id="stop-timer">⏹ Stop</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Activity Feed -->
@@ -159,24 +196,12 @@
 </section>
 
 <!-- Delete Confirmation Modal -->
-<div
-    class="modal fade"
-    id="deleteTaskModal"
-    tabindex="-1"
-    aria-labelledby="deleteTaskModalLabel"
-    aria-hidden="true"
-    role="dialog"
->
+<div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-labelledby="deleteTaskModalLabel" aria-hidden="true" role="dialog">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content border-danger">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title" id="deleteTaskModalLabel">Confirm Task Deletion</h5>
-                <button
-                    type="button"
-                    class="btn-close btn-close-white"
-                    data-bs-dismiss="modal"
-                    aria-label="Close modal"
-                ></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close modal"></button>
             </div>
             <div class="modal-body">
                 Are you sure you want to delete this task? This action cannot be undone.
@@ -193,18 +218,22 @@
 {% endblock %}
 
 {% block body_scripts %}
+<script id="timer-config" type="application/json">
+{
+  "focusMinutes": {{ (current_user.preferences.focus_time|default(25,true))|int }},
+  "breakMinutes": {{ (current_user.preferences.break_time|default(5,true))|int }}
+}
+</script>
+<script src="{{ url_for('static', filename='css/js/timer.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const deleteModal = document.getElementById('deleteTaskModal');
         const deleteForm = document.getElementById('deleteTaskForm');
 
-        // When "Delete" button is clicked
         document.querySelectorAll('.btn-delete-task').forEach(button => {
             button.addEventListener('click', () => {
                 const taskId = button.getAttribute('data-task-id');
-                // Set form action dynamically
                 deleteForm.action = `/task/delete/${taskId}`;
-                // Show modal
                 const modal = new bootstrap.Modal(deleteModal);
                 modal.show();
             });
@@ -212,4 +241,3 @@
     });
 </script>
 {% endblock %}
-
