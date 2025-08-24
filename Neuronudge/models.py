@@ -37,7 +37,7 @@ class User(UserMixin, db.Model):
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text)
+    description = db.Column(db.Text, nullable=False)
     due_date = db.Column(db.DateTime)
     completed = db.Column(db.Boolean, default=False)
     priority = db.Column(db.Integer, default=3)         # 1 = high, 2 = med, 3 = low
@@ -77,7 +77,6 @@ class OnboardingPreferences(db.Model):
     session_goal = db.Column(db.Integer, default=4)
     notifications_enabled = db.Column(db.Boolean, default=True)
     dark_mode_enabled = db.Column(db.Boolean, default=False)
-
     theme_color = db.Column(db.String(20), default='blue')
     font_size = db.Column(db.String(10), default='medium')
     sound_enabled = db.Column(db.Boolean, default=True)

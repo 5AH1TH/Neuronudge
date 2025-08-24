@@ -3,13 +3,15 @@ from flask_login import login_required, current_user
 from .models import Task, OnboardingPreferences, User
 from . import db
 from .forms import OnboardingForm, TaskForm, ProfileUpdateForm, PasswordChangeForm, RegisterForm, ChangePasswordForm
-from datetime import datetime
+from datetime import datetime, time
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 import logging
 import pytz
 from datetime import timedelta
 import os
+
+PACIFIC = pytz.timezone('US/Pacific')
 
 views = Blueprint('views', __name__)
 
@@ -111,6 +113,7 @@ def dashboard():
         filter_priority=filter_priority,
         search_term=search_term,
         task_counts=task_counts,
+        pytz=pytz,
         paginated_tasks=paginated_tasks
     )
 
@@ -154,29 +157,28 @@ def create_task():
         prefs = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
 
         computed_due = None
-        if form.due_date.data:
-            computed_due = datetime.combine(
-                form.due_date.data - timedelta(days=1),
-                datetime.strptime("11:59", "%H:%M").time()
-            )
-        else:
-            if prefs:
-                try:
-                    tz = pytz.timezone(prefs.timezone or 'UTC')
-                except Exception:
-                    tz = pytz.timezone('UTC')
-                now_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
-                now_local = now_utc.astimezone(tz)
-                local_due = now_local + timedelta(minutes=int(prefs.focus_time or 25))
-                computed_due = local_due.astimezone(pytz.UTC).replace(tzinfo=None)
 
-        # ✅ store priority as int, completed from status
+        if form.due_date.data:
+            # Treat the input date as Pacific local date at 23:59
+            local_due = datetime.combine(form.due_date.data, time(23, 59))
+            local_due = PACIFIC.localize(local_due)
+
+            # Convert to UTC for storage in DB
+            computed_due = local_due.astimezone(pytz.UTC).replace(tzinfo=None)
+        else:
+            # No due date provided, use onboarding focus time if available
+            now_local = datetime.now(PACIFIC)
+            focus_minutes = int(prefs.focus_time) if prefs and prefs.focus_time else 25
+            local_due = now_local + timedelta(minutes=focus_minutes)
+            computed_due = local_due.astimezone(pytz.UTC).replace(tzinfo=None)
+
+        # Create the task with all features intact
         new_task = Task(
             title=form.title.data,
             description=form.description.data,
             completed=(form.status.data == "completed"),
             due_date=computed_due,
-            priority=int(form.priority.data),   # force integer
+            priority=int(form.priority.data),
             reminder_set=form.reminder_set.data,
             user_id=current_user.id
         )
@@ -185,11 +187,10 @@ def create_task():
         db.session.commit()
 
         flash("Task added successfully!", category='success')
-        log_action(current_user.id, f"Created task: {new_task.title}")
+        log_action(current_user.id, f"Created task: {new_task.title}, date: {computed_due}")
         return redirect(url_for('views.dashboard'))
 
     return render_template('create_task.html', form=form)
-
 
 
 @views.route('/task/edit/<int:id>', methods=['GET', 'POST'])
@@ -202,8 +203,9 @@ def edit_task(id):
 
     form = TaskForm(obj=task)
 
+    # Preload priority and status fields for GET request
     if request.method == 'GET':
-        form.priority.data = str(task.priority)   # preload as string for SelectField
+        form.priority.data = str(task.priority)
         form.status.data = "completed" if task.completed else "not_started"
 
     if form.validate_on_submit():
@@ -213,12 +215,14 @@ def edit_task(id):
         task.completed = (form.status.data == "completed")
 
         if form.due_date.data:
-            task.due_date = datetime.combine(
-                form.due_date.data - timedelta(days=1),
-                datetime.strptime("11:59", "%H:%M").time()
-            )
+            # Treat the input date as Pacific local date at 23:59
+            local_due = datetime.combine(form.due_date.data, time(23, 59))
+            local_due = PACIFIC.localize(local_due)
 
-        # ✅ store priority as int
+            # Convert to UTC for storage
+            task.due_date = local_due.astimezone(pytz.UTC).replace(tzinfo=None)
+
+        # Store priority as integer and update reminder
         task.priority = int(form.priority.data)
         task.reminder_set = form.reminder_set.data
 
@@ -229,7 +233,6 @@ def edit_task(id):
         return redirect(url_for('views.dashboard'))
 
     return render_template('edit_task.html', form=form, task=task)
-
 
 
 @views.route('/task/delete/<int:id>', methods=['POST'])

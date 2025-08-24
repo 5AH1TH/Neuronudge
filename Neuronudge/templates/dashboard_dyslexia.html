@@ -1,7 +1,6 @@
 {% extends "layout_dyslexia.html" %}
 
 {% block content %}
-
 <section aria-labelledby="dashboardHeading" class="my-5 dyslexia-mode">
     <div class="container">
         <h1 id="dashboardHeading" class="mb-4 display-4 text-primary">Dashboard</h1>
@@ -72,21 +71,16 @@
                 <tbody>
                     {% if recent_tasks %}
                         {% for task in recent_tasks %}
+                        {% set task_local_due = task.due_date.replace(tzinfo=pytz.UTC).astimezone(pytz.timezone('US/Pacific')) if task.due_date else None %}
                         <tr>
                             <td>{{ task.title }}</td>
-                            <td>{{ task.due_date.strftime('%b %d, %Y') if task.due_date else 'No due date' }}</td>
+                            <td>{{ task_local_due.strftime('%b %d, %Y') if task_local_due else 'No due date' }}</td>
                             <td>
-                                {% if task.priority == 1 %}
-                                    <span class="badge bg-danger">High</span>
-                                {% elif task.priority == 2 %}
-                                    <span class="badge bg-warning text-dark">Medium</span>
-                                {% elif task.priority == 3 %}
-                                    <span class="badge bg-secondary">Low</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">Unknown</span>
-                                {% endif %}
+                                {% if task.priority == 1 %}<span class="badge bg-danger">High</span>
+                                {% elif task.priority == 2 %}<span class="badge bg-warning text-dark">Medium</span>
+                                {% elif task.priority == 3 %}<span class="badge bg-secondary">Low</span>
+                                {% else %}<span class="badge bg-secondary">Unknown</span>{% endif %}
                             </td>
-
                             <td>
                                 {% if task.completed %}
                                     <span class="badge bg-success">Completed</span>
@@ -95,12 +89,19 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <a href="{{ url_for('views.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary" aria-label="Edit task {{ task.title }}">
-                                    <i class="fa-solid fa-pen-to-square"></i> Edit
-                                </a>
-                                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-task" data-task-id="{{ task.id }}" aria-label="Delete task {{ task.title }}">
-                                    <i class="fa-solid fa-trash"></i> Delete
+                                <a href="{{ url_for('views.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-task" data-task-id="{{ task.id }}">Delete</button>
+
+                                {% if not task.completed %}
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-success start-task-btn"
+                                    data-task-id="{{ task.id }}"
+                                    data-task-title="{{ task.title }}"
+                                >
+                                    ▶ Start Task
                                 </button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -111,6 +112,33 @@
                     {% endif %}
                 </tbody>
             </table>
+        </div>
+
+        <!-- Timer + Form (hidden until Start Task pressed) -->
+        <div id="task-timer-section" class="mt-4" style="display:none;">
+            <div class="d-flex">
+                <div class="flex-grow-1 me-3">
+                    <div class="card shadow-sm p-3">
+                        <h5>Set Task Duration</h5>
+                        <p id="selected-task-name" class="text-muted">No task selected</p>
+                        <label for="timeInput" class="form-label">Estimated Time (minutes)</label>
+                        <input type="number" id="timeInput" class="form-control" min="1" placeholder="e.g., 25">
+                        <button class="btn btn-success mt-2" id="start-timer">Start</button>
+                    </div>
+                </div>
+                <div class="flex-shrink-0" style="width:35%;">
+                    <div class="card shadow-sm p-3">
+                        <h5 class="text-center">Task Timer</h5>
+                        <div id="timer-display" class="display-4 text-center">00:00</div>
+                        <div id="timer-status" class="text-center text-muted">Idle</div>
+                        <div class="d-flex justify-content-between gap-2 mt-3">
+                            <button class="btn btn-warning flex-fill" id="pause-timer">⏸ Pause</button>
+                            <button class="btn btn-primary flex-fill" id="resume-timer">▶ Resume</button>
+                            <button class="btn btn-danger flex-fill" id="stop-timer">⏹ Stop</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Activity Feed -->
@@ -159,24 +187,12 @@
 </section>
 
 <!-- Delete Confirmation Modal -->
-<div
-    class="modal fade"
-    id="deleteTaskModal"
-    tabindex="-1"
-    aria-labelledby="deleteTaskModalLabel"
-    aria-hidden="true"
-    role="dialog"
->
+<div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-labelledby="deleteTaskModalLabel" aria-hidden="true" role="dialog">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content border-danger">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title" id="deleteTaskModalLabel">Confirm Task Deletion</h5>
-                <button
-                    type="button"
-                    class="btn-close btn-close-white"
-                    data-bs-dismiss="modal"
-                    aria-label="Close modal"
-                ></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close modal"></button>
             </div>
             <div class="modal-body">
                 Are you sure you want to delete this task? This action cannot be undone.
@@ -193,21 +209,115 @@
 {% endblock %}
 
 {% block body_scripts %}
-{{ super() }}
 <script>
-    // (Unchanged) Delete modal wiring
-    document.addEventListener('DOMContentLoaded', function () {
-        const deleteModal = document.getElementById('deleteTaskModal');
-        const deleteForm = document.getElementById('deleteTaskForm');
+document.addEventListener("DOMContentLoaded", () => {
+    // ===== FOCUS MODE =====
+    const overlay = document.getElementById("focus-overlay");
+    const btn = document.getElementById("enterFocusMode");
+    const timerDisplay = document.getElementById("focus-timer-display");
+    const pauseBtn = document.getElementById("pause-focus");
+    const resumeBtn = document.getElementById("resume-focus");
+    const exitBtn = document.getElementById("exit-focus");
 
-        document.querySelectorAll('.btn-delete-task').forEach(button => {
-            button.addEventListener('click', () => {
-                const taskId = button.getAttribute('data-task-id');
-                deleteForm.action = `/task/delete/${taskId}`;
-                const modal = new bootstrap.Modal(deleteModal);
-                modal.show();
-            });
+    let interval = null;
+    let remaining = 25 * 60;
+    let paused = false;
+
+    function formatTime(s) {
+        const m = Math.floor(s / 60).toString().padStart(2,"0");
+        const sec = (s % 60).toString().padStart(2,"0");
+        return `${m}:${sec}`;
+    }
+
+    if (btn) {
+        btn.addEventListener("click", () => {
+            if (!overlay || !timerDisplay) return;
+            overlay.style.display = "block";
+            remaining = 25 * 60;
+            timerDisplay.textContent = formatTime(remaining);
+            interval = setInterval(() => {
+                if (!paused) {
+                    remaining--;
+                    timerDisplay.textContent = formatTime(remaining);
+                    if (remaining <= 0) {
+                        clearInterval(interval);
+                        timerDisplay.textContent = "Time's up!";
+                        if (typeof launchConfetti === "function") launchConfetti();
+                    }
+                }
+            }, 1000);
+        });
+    }
+
+    if (pauseBtn) pauseBtn.addEventListener("click", () => paused = true);
+    if (resumeBtn) resumeBtn.addEventListener("click", () => paused = false);
+    if (exitBtn) exitBtn.addEventListener("click", () => {
+        clearInterval(interval);
+        if (overlay) overlay.style.display = "none";
+    });
+
+    // ===== TASK TIMER =====
+    const startTaskButtons = document.querySelectorAll(".start-task-btn");
+    const taskTimerSection = document.getElementById("task-timer-section");
+    const selectedTaskName = document.getElementById("selected-task-name");
+    const taskTimerDisplay = document.getElementById("timer-display");
+    const taskTimerStatus = document.getElementById("timer-status");
+    const startTimerBtn = document.getElementById("start-timer");
+    const pauseTaskBtn = document.getElementById("pause-timer");
+    const resumeTaskBtn = document.getElementById("resume-timer");
+    const stopTaskBtn = document.getElementById("stop-timer");
+
+    let taskInterval = null;
+    let taskRemaining = 0;
+    let taskPaused = false;
+
+    function startTaskTimer(minutes) {
+        taskRemaining = minutes * 60;
+        taskTimerStatus.textContent = "Running";
+        if (taskTimerDisplay) taskTimerDisplay.textContent = formatTime(taskRemaining);
+
+        clearInterval(taskInterval);
+        taskInterval = setInterval(() => {
+            if (!taskPaused) {
+                taskRemaining--;
+                if (taskTimerDisplay) taskTimerDisplay.textContent = formatTime(taskRemaining);
+                if (taskRemaining <= 0) {
+                    clearInterval(taskInterval);
+                    taskTimerStatus.textContent = "Completed!";
+                    if (taskTimerDisplay) taskTimerDisplay.textContent = "00:00";
+                }
+            }
+        }, 1000);
+    }
+
+    startTaskButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const title = btn.dataset.taskTitle;
+            if (selectedTaskName) selectedTaskName.textContent = title;
+            if (taskTimerSection) {
+                taskTimerSection.style.display = "block";
+                taskTimerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            const timeInput = document.getElementById("timeInput");
+            const minutes = parseInt(timeInput?.value) || 25;
+            startTaskTimer(minutes);
         });
     });
+
+    if (pauseTaskBtn) pauseTaskBtn.addEventListener("click", () => { taskPaused = true; if (taskTimerStatus) taskTimerStatus.textContent = "Paused"; });
+    if (resumeTaskBtn) resumeTaskBtn.addEventListener("click", () => { taskPaused = false; if (taskTimerStatus) taskTimerStatus.textContent = "Running"; });
+    if (stopTaskBtn) stopTaskBtn.addEventListener("click", () => {
+        clearInterval(taskInterval);
+        if (taskTimerDisplay) taskTimerDisplay.textContent = "00:00";
+        if (taskTimerStatus) taskTimerStatus.textContent = "Idle";
+    });
+
+    if (startTimerBtn) startTimerBtn.addEventListener("click", () => {
+        const timeInput = document.getElementById("timeInput");
+        const minutes = parseInt(timeInput?.value) || 25;
+        startTaskTimer(minutes);
+    });
+});
 </script>
 {% endblock %}

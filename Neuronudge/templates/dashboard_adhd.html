@@ -1,0 +1,259 @@
+{% extends "layout_adhd.html" %}
+
+{% block content %}
+<section class="my-5">
+    <h1 class="display-4 text-primary">Dashboard (ADHD Mode)</h1>
+    <p class="lead">Welcome back, {{ current_user.name or current_user.email }}!</p>
+
+    <!-- Quick Big Focus Task Button -->
+    <div class="text-center my-4">
+        <button id="enterFocusMode" class="btn btn-lg btn-success px-5 py-3">
+            <i class="fa-solid fa-bullseye me-2"></i> Start Focus Mode
+        </button>
+    </div>
+
+    <!-- Task Summary -->
+    <div class="row g-4 my-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-primary h-100 text-center">
+                <div class="card-body">
+                    <h2>{{ task_counts.total }}</h2>
+                    <p>Total Tasks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-warning h-100 text-center">
+                <div class="card-body">
+                    <h2>{{ task_counts.pending }}</h2>
+                    <p>Pending</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-success h-100 text-center">
+                <div class="card-body">
+                    <h2>{{ task_counts.completed }}</h2>
+                    <p>Completed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-danger h-100 text-center">
+                <div class="card-body">
+                    <h2>{{ task_counts.overdue }}</h2>
+                    <p>Overdue</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="d-flex flex-wrap gap-3 my-4">
+        <a href="{{ url_for('views.create_task') }}" class="btn btn-lg btn-primary">
+            <i class="fa-solid fa-plus me-2"></i> New Task
+        </a>
+        <a href="{{ url_for('views.task_list') }}" class="btn btn-lg btn-outline-secondary">
+            <i class="fa-solid fa-list me-2"></i> All Tasks
+        </a>
+        <a href="{{ url_for('views.onboarding') }}" class="btn btn-lg btn-outline-info">
+            <i class="fa-solid fa-gear me-2"></i> Preferences
+        </a>
+    </div>
+
+    <!-- Recent Tasks -->
+    <div class="table-responsive shadow-sm border rounded">
+        <table class="table align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Task</th>
+                    <th>Due</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in recent_tasks %}
+                <tr>
+                    <td>{{ task.title }}</td>
+                    <td>{{ task.due_date.strftime('%b %d, %Y') if task.due_date else 'No due date' }}</td>
+                    <td>
+                        {% if task.priority == 1 %}<span class="badge bg-danger">High</span>
+                        {% elif task.priority == 2 %}<span class="badge bg-warning text-dark">Medium</span>
+                        {% elif task.priority == 3 %}<span class="badge bg-secondary">Low</span>
+                        {% else %}<span class="badge bg-secondary">Unknown</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if task.completed %}<span class="badge bg-success">Completed</span>
+                        {% else %}<span class="badge bg-info text-dark">Pending</span>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        <!-- Start Task Button -->
+                        {% if not task.completed %}
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-success start-task-btn"
+                            data-task-id="{{ task.id }}"
+                            data-task-title="{{ task.title }}"
+                        >
+                            ▶ Start Task
+                        </button>
+                        {% endif %}
+                        <a href="{{ url_for('views.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-delete-task" data-task-id="{{ task.id }}">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Timer + Form (hidden until Start Task pressed) -->
+    <div id="task-timer-section" class="mt-4" style="display:none;">
+        <div class="d-flex">
+            <!-- LEFT: form -->
+            <div class="flex-grow-1 me-3">
+                <div class="card shadow-sm p-3">
+                    <h5>Set Task Duration</h5>
+                    <p id="selected-task-name" class="text-muted">No task selected</p>
+                    <label for="timeInput" class="form-label">Estimated Time (minutes)</label>
+                    <input type="number" id="timeInput" class="form-control" min="1" placeholder="e.g., 25">
+                    <button class="btn btn-success mt-2" id="start-timer">Start</button>
+                </div>
+            </div>
+            <!-- RIGHT: timer -->
+            <div class="flex-shrink-0" style="width:35%;">
+                <div class="card shadow-sm p-3">
+                    <h5 class="text-center">Task Timer</h5>
+                    <div id="timer-display" class="display-4 text-center">00:00</div>
+                    <div id="timer-status" class="text-center text-muted">Idle</div>
+                    <div class="d-flex justify-content-between gap-2 mt-3">
+                        <button class="btn btn-warning flex-fill" id="pause-timer">⏸ Pause</button>
+                        <button class="btn btn-primary flex-fill" id="resume-timer">▶ Resume</button>
+                        <button class="btn btn-danger flex-fill" id="stop-timer">⏹ Stop</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // ===== FOCUS MODE =====
+    const overlay = document.getElementById("focus-overlay");
+    const btn = document.getElementById("enterFocusMode");
+    const timerDisplay = document.getElementById("focus-timer-display");
+    const pauseBtn = document.getElementById("pause-focus");
+    const resumeBtn = document.getElementById("resume-focus");
+    const exitBtn = document.getElementById("exit-focus");
+
+    let interval = null;
+    let remaining = 25 * 60;
+    let paused = false;
+
+    function formatTime(s) {
+        const m = Math.floor(s / 60).toString().padStart(2,"0");
+        const sec = (s % 60).toString().padStart(2,"0");
+        return `${m}:${sec}`;
+    }
+
+    if (btn) {
+        btn.addEventListener("click", () => {
+            if (!overlay || !timerDisplay) return;
+            overlay.style.display = "block";
+            remaining = 25 * 60;
+            timerDisplay.textContent = formatTime(remaining);
+            interval = setInterval(() => {
+                if (!paused) {
+                    remaining--;
+                    timerDisplay.textContent = formatTime(remaining);
+                    if (remaining <= 0) {
+                        clearInterval(interval);
+                        timerDisplay.textContent = "Time's up!";
+                        if (typeof launchConfetti === "function") launchConfetti();
+                    }
+                }
+            }, 1000);
+        });
+    }
+
+    if (pauseBtn) pauseBtn.addEventListener("click", () => paused = true);
+    if (resumeBtn) resumeBtn.addEventListener("click", () => paused = false);
+    if (exitBtn) exitBtn.addEventListener("click", () => {
+        clearInterval(interval);
+        if (overlay) overlay.style.display = "none";
+    });
+
+    // ===== TASK TIMER =====
+    const startTaskButtons = document.querySelectorAll(".start-task-btn");
+    const taskTimerSection = document.getElementById("task-timer-section");
+    const selectedTaskName = document.getElementById("selected-task-name");
+    const taskTimerDisplay = document.getElementById("timer-display");
+    const taskTimerStatus = document.getElementById("timer-status");
+    const startTimerBtn = document.getElementById("start-timer");
+    const pauseTaskBtn = document.getElementById("pause-timer");
+    const resumeTaskBtn = document.getElementById("resume-timer");
+    const stopTaskBtn = document.getElementById("stop-timer");
+
+    let taskInterval = null;
+    let taskRemaining = 0;
+    let taskPaused = false;
+
+    function startTaskTimer(minutes) {
+        taskRemaining = minutes * 60;
+        taskTimerStatus.textContent = "Running";
+        if (taskTimerDisplay) taskTimerDisplay.textContent = formatTime(taskRemaining);
+
+        clearInterval(taskInterval);
+        taskInterval = setInterval(() => {
+            if (!taskPaused) {
+                taskRemaining--;
+                if (taskTimerDisplay) taskTimerDisplay.textContent = formatTime(taskRemaining);
+                if (taskRemaining <= 0) {
+                    clearInterval(taskInterval);
+                    taskTimerStatus.textContent = "Completed!";
+                    if (taskTimerDisplay) taskTimerDisplay.textContent = "00:00";
+                }
+            }
+        }, 1000);
+    }
+
+    startTaskButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const title = btn.dataset.taskTitle;
+            if (selectedTaskName) selectedTaskName.textContent = title;
+            if (taskTimerSection) {
+                taskTimerSection.style.display = "block";
+                taskTimerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            const timeInput = document.getElementById("timeInput");
+            const minutes = parseInt(timeInput?.value) || 25;
+            startTaskTimer(minutes);
+        });
+    });
+
+    if (pauseTaskBtn) pauseTaskBtn.addEventListener("click", () => { taskPaused = true; if (taskTimerStatus) taskTimerStatus.textContent = "Paused"; });
+    if (resumeTaskBtn) resumeTaskBtn.addEventListener("click", () => { taskPaused = false; if (taskTimerStatus) taskTimerStatus.textContent = "Running"; });
+    if (stopTaskBtn) stopTaskBtn.addEventListener("click", () => {
+        clearInterval(taskInterval);
+        if (taskTimerDisplay) taskTimerDisplay.textContent = "00:00";
+        if (taskTimerStatus) taskTimerStatus.textContent = "Idle";
+    });
+
+    if (startTimerBtn) startTimerBtn.addEventListener("click", () => {
+        const timeInput = document.getElementById("timeInput");
+        const minutes = parseInt(timeInput?.value) || 25;
+        startTaskTimer(minutes);
+    });
+});
+</script>
+{% endblock %}
