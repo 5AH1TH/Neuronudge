@@ -92,9 +92,19 @@ def dashboard():
 
     onboarding = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
 
+    # 👇 NEW: Choose which dashboard template to render
+    profile_type = getattr(current_user, "profile_type", "general").lower()
+
+    if profile_type == "dyslexia":
+        dashboard_template = "dashboard_dyslexia.html"
+    elif profile_type == "adhd":
+        dashboard_template = "dashboard_adhd.html"
+    else:
+        dashboard_template = "dashboard.html"
+
     return render_template(
-        'dashboard.html',
-        tasks=tasks,   # 👈 now available in template
+        dashboard_template,
+        tasks=tasks,   # 👈 still available in all templates
         recent_tasks=recent_tasks,
         onboarding=onboarding,
         filter_status=filter_status,
@@ -103,6 +113,7 @@ def dashboard():
         task_counts=task_counts,
         paginated_tasks=paginated_tasks
     )
+
 
 @views.route('/onboarding', methods=['GET', 'POST'])
 @login_required
