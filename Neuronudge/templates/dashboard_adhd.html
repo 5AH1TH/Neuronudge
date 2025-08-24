@@ -1,9 +1,9 @@
 {% extends "layout_adhd.html" %}
 
 {% block content %}
-<section aria-labelledby="dashboardHeading" class="my-5 adhd-mode">
+<section class="my-5 adhd-mode">
     <div class="container">
-        <h1 id="dashboardHeading" class="mb-4 display-4 text-primary">Dashboard (ADHD Mode)</h1>
+        <h1 class="display-4 text-primary">Dashboard (ADHD Mode)</h1>
         <p class="lead">Welcome back, {{ current_user.name or current_user.email }}!</p>
 
         <!-- Quick Big Focus Task Button -->
@@ -14,7 +14,7 @@
         </div>
 
         <!-- Task Summary -->
-        <div class="row g-4 my-4" role="region" aria-label="Task summary">
+        <div class="row g-4 my-4">
             <div class="col-md-3 col-sm-6">
                 <div class="card shadow-sm border-primary h-100 text-center">
                     <div class="card-body">
@@ -75,42 +75,36 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% if recent_tasks %}
-                        {% for task in recent_tasks %}
-                        {% set task_local_due = task.due_date.replace(tzinfo=pytz.UTC).astimezone(pytz.timezone('US/Pacific')) if task.due_date else None %}
-                        <tr>
-                            <td>{{ task.title }}</td>
-                            <td>{{ task_local_due.strftime('%b %d, %Y') if task_local_due else 'No due date' }}</td>
-                            <td>
-                                {% if task.priority == 1 %}<span class="badge bg-danger">High</span>
-                                {% elif task.priority == 2 %}<span class="badge bg-warning text-dark">Medium</span>
-                                {% elif task.priority == 3 %}<span class="badge bg-secondary">Low</span>
-                                {% else %}<span class="badge bg-secondary">Unknown</span>{% endif %}
-                            </td>
-                            <td>
-                                {% if task.completed %}<span class="badge bg-success">Completed</span>
-                                {% else %}<span class="badge bg-info text-dark">Pending</span>{% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if not task.completed %}
-                                <button type="button" class="btn btn-sm btn-success start-task-btn" data-task-id="{{ task.id }}" data-task-title="{{ task.title }}">
-                                    ▶ Start Task
-                                </button>
-                                {% endif %}
-                                <a href="{{ url_for('views.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </a>
-                                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-task" data-task-id="{{ task.id }}">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted">No recent tasks found. Start by creating a new task!</td>
-                        </tr>
-                    {% endif %}
+                    {% for task in recent_tasks %}
+                    {% set task_local_due = task.due_date.replace(tzinfo=pytz.UTC).astimezone(pytz.timezone('US/Pacific')) if task.due_date else None %}
+                    <tr>
+                        <td>{{ task.title }}</td>
+                        <td>{{ task_local_due.strftime('%b %d, %Y') if task_local_due else 'No due date' }}</td>
+                        <td>
+                            {% if task.priority == 1 %}<span class="badge bg-danger">High</span>
+                            {% elif task.priority == 2 %}<span class="badge bg-warning text-dark">Medium</span>
+                            {% elif task.priority == 3 %}<span class="badge bg-secondary">Low</span>
+                            {% else %}<span class="badge bg-secondary">Unknown</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if task.completed %}<span class="badge bg-success">Completed</span>
+                            {% else %}<span class="badge bg-info text-dark">Pending</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if not task.completed %}
+                            <button type="button" class="btn btn-sm btn-success start-task-btn" data-task-id="{{ task.id }}" data-task-title="{{ task.title }}">
+                                ▶ Start Task
+                            </button>
+                            {% endif %}
+                            <a href="{{ url_for('views.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-task" data-task-id="{{ task.id }}">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
@@ -144,6 +138,12 @@
     </div>
 </section>
 
+<!-- Focus Mode Overlay -->
+<div id="focus-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000a; color:white; z-index:1050; justify-content:center; align-items:center; flex-direction:column; font-size:3rem; display:flex;">
+    <div id="focus-timer-display">25:00</div>
+    <button id="exit-focus" class="btn btn-danger mt-3">Exit Focus</button>
+</div>
+
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-labelledby="deleteTaskModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -164,23 +164,20 @@
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block body_scripts %}
 {{ super() }}
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-
-    // --- DELETE TASK MODAL ---
+document.addEventListener('DOMContentLoaded', function() {
+    // --- DELETE TASK ---
     const deleteModal = document.getElementById('deleteTaskModal');
     const deleteForm = document.getElementById('deleteTaskForm');
     document.querySelectorAll('.btn-delete-task').forEach(btn => {
         btn.addEventListener('click', () => {
             const taskId = btn.getAttribute('data-task-id');
             deleteForm.action = `/task/delete/${taskId}`;
-            const modal = new bootstrap.Modal(deleteModal);
-            modal.show();
+            new bootstrap.Modal(deleteModal).show();
         });
     });
 
@@ -206,44 +203,80 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function startTimer(minutes) {
-        remainingTime = minutes * 60;
-        timerStatus.textContent = 'Running';
-        timerDisplay.textContent = formatTime(remainingTime);
-
+        remainingTime = minutes*60;
+        timerStatus.textContent='Running';
+        timerDisplay.textContent=formatTime(remainingTime);
         clearInterval(timerInterval);
-        timerInterval = setInterval(() => {
-            if (!paused) {
+        timerInterval=setInterval(()=>{
+            if(!paused){
                 remainingTime--;
-                timerDisplay.textContent = formatTime(remainingTime);
-                if (remainingTime <= 0) {
+                timerDisplay.textContent=formatTime(remainingTime);
+                if(remainingTime<=0){
                     clearInterval(timerInterval);
-                    timerStatus.textContent = 'Completed!';
-                    timerDisplay.textContent = '00:00';
+                    timerStatus.textContent='Completed!';
+                    timerDisplay.textContent='00:00';
                 }
             }
-        }, 1000);
+        },1000);
     }
 
-    startTaskButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const title = btn.dataset.taskTitle;
-            selectedTaskName.textContent = title;
-            taskTimerSection.style.display = 'block';
-            taskTimerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    startTaskButtons.forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+            selectedTaskName.textContent = btn.dataset.taskTitle;
+            taskTimerSection.style.display='block';
+            taskTimerSection.scrollIntoView({behavior:'smooth', block:'start'});
         });
     });
 
-    startTimerBtn.addEventListener('click', () => {
-        const minutes = parseInt(document.getElementById('timeInput').value) || 25;
+    startTimerBtn.addEventListener('click', ()=>{
+        const minutes=parseInt(document.getElementById('timeInput').value)||25;
         startTimer(minutes);
     });
 
-    pauseBtn.addEventListener('click', () => { paused = true; timerStatus.textContent='Paused'; });
-    resumeBtn.addEventListener('click', () => { paused = false; timerStatus.textContent='Running'; });
-    stopBtn.addEventListener('click', () => {
+    pauseBtn.addEventListener('click', ()=>{paused=true; timerStatus.textContent='Paused';});
+    resumeBtn.addEventListener('click', ()=>{paused=false; timerStatus.textContent='Running';});
+    stopBtn.addEventListener('click', ()=>{
         clearInterval(timerInterval);
-        timerDisplay.textContent = '00:00';
-        timerStatus.textContent = 'Idle';
+        timerDisplay.textContent='00:00';
+        timerStatus.textContent='Idle';
+    });
+
+    // --- FOCUS MODE ---
+    const focusBtn = document.getElementById('enterFocusMode');
+    const overlay = document.getElementById('focus-overlay');
+    const focusTimerDisplay = document.getElementById('focus-timer-display');
+    const exitFocusBtn = document.getElementById('exit-focus');
+
+    let focusInterval = null;
+    let focusRemaining = 25*60;
+    let focusPaused = false;
+
+    function formatFocusTime(s){
+        const m=Math.floor(s/60).toString().padStart(2,'0');
+        const sec=(s%60).toString().padStart(2,'0');
+        return `${m}:${sec}`;
+    }
+
+    focusBtn.addEventListener('click', ()=>{
+        overlay.style.display='flex';
+        focusRemaining=25*60;
+        focusTimerDisplay.textContent=formatFocusTime(focusRemaining);
+        clearInterval(focusInterval);
+        focusInterval=setInterval(()=>{
+            if(!focusPaused){
+                focusRemaining--;
+                focusTimerDisplay.textContent=formatFocusTime(focusRemaining);
+                if(focusRemaining<=0){
+                    clearInterval(focusInterval);
+                    focusTimerDisplay.textContent="Time's up!";
+                }
+            }
+        },1000);
+    });
+
+    exitFocusBtn.addEventListener('click', ()=>{
+        overlay.style.display='none';
+        clearInterval(focusInterval);
     });
 
 });
