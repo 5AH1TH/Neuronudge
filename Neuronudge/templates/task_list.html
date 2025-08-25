@@ -44,7 +44,7 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
-                            <a href="{{ url_for('views.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary" aria-label="Edit task {{ task.title }}">
+                            <a href="{{ url_for('main.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary" aria-label="Edit task {{ task.title }}">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </a>
                             <button type="button" class="btn btn-sm btn-outline-danger btn-delete-task" data-task-id="{{ task.id }}" aria-label="Delete task {{ task.title }}">
@@ -57,7 +57,7 @@
             </table>
         </div>
         {% else %}
-        <p class="text-muted text-center fs-5">You have no tasks yet. <a href="{{ url_for('views.create_task') }}">Create your first task now.</a></p>
+        <p class="text-muted text-center fs-5">You have no tasks yet. <a href="{{ url_for('main.create_task') }}">Create your first task now.</a></p>
         {% endif %}
     </div>
 </section>

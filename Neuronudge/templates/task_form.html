@@ -71,6 +71,6 @@
     </fieldset>
 
     <button type="submit" class="btn btn-primary" aria-label="Save Task">{% if form.title.data %}Update Task{% else %}Create Task{% endif %}</button>
-    <a href="{{ url_for('views.dashboard') }}" class="btn btn-secondary" role="button">Cancel</a>
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary" role="button">Cancel</a>
 </form>
 {% endblock %}

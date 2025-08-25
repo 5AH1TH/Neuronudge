@@ -4,7 +4,7 @@
     <h1>Welcome to NeuroNudge</h1>
     <p>Your personal productivity assistant.</p>
     {% if current_user.is_authenticated %}
-    <a href="{{ url_for('views.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
     {% else %}
     <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Login</a>
     <a href="{{ url_for('auth.register') }}" class="btn btn-secondary ms-2">Register</a>

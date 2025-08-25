@@ -20,17 +20,17 @@
                 {% endif %}
             </div>
 
-                <div class="mb-3">
-        <label for="username" class="form-label">Username</label>
-        {{ form.username(class="form-control", id="username", placeholder="Choose a username", aria_required="true") }}
-        {% if form.username.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.username.errors %}
-                    {{ error }}
-                {% endfor %}
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                {{ form.username(class="form-control", id="username", placeholder="Choose a username", aria_required="true") }}
+                {% if form.username.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.username.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
-        {% endif %}
-    </div>
 
             <div class="mb-3">
                 <label for="email" class="form-label">Email address</label>
@@ -82,6 +82,22 @@
                 {% endif %}
             </div>
 
+            <!-- Custom Features Checkboxes -->
+            <div id="custom-features" style="display: none;" class="mb-3">
+                <h5>Choose your features:</h5>
+                <div>{{ form.feature_timer.label }} {{ form.feature_timer() }}</div>
+                <div>{{ form.feature_focus_mode.label }} {{ form.feature_focus_mode() }}</div>
+                <div>{{ form.feature_scroll_autostart.label }} {{ form.feature_scroll_autostart() }}</div>
+                <div>{{ form.feature_task_stats.label }} {{ form.feature_task_stats() }}</div>
+                <div>{{ form.feature_task_timer.label }} {{ form.feature_task_timer() }}</div>
+                <div>{{ form.feature_deadline_tracker.label }} {{ form.feature_deadline_tracker() }}</div>
+                <div>{{ form.feature_custom_colors.label }} {{ form.feature_custom_colors() }}</div>
+                <div>{{ form.feature_auto_reminders.label }} {{ form.feature_auto_reminders() }}</div>
+                <div>{{ form.feature_priority_sort.label }} {{ form.feature_priority_sort() }}</div>
+                <div>{{ form.feature_task_export.label }} {{ form.feature_task_export() }}</div>
+                <div>{{ form.feature_progress_graphs.label }} {{ form.feature_progress_graphs() }}</div>
+            </div>
+
             <button type="submit" class="btn btn-primary w-100" aria-label="Submit registration form">Register</button>
         </form>
 
@@ -92,4 +108,29 @@
         </p>
     </div>
 </section>
+
+<!-- JS to toggle features based on profile type -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const profileSelect = document.querySelector('select[name="profile_type"]');
+    const customFeatures = document.getElementById('custom-features');
+
+    function toggleFeatures() {
+        if (profileSelect.value === 'custom') {
+            customFeatures.style.display = 'block';
+        } else {
+            customFeatures.style.display = 'none';
+            // Uncheck all feature checkboxes when hidden
+            const checkboxes = customFeatures.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+        }
+    }
+
+    // Run on page load in case "custom" is pre-selected
+    toggleFeatures();
+
+    // Listen for profile type changes
+    profileSelect.addEventListener('change', toggleFeatures);
+});
+</script>
 {% endblock %}

@@ -33,7 +33,7 @@
     <Compile Include="Neuronudge\models.py" />
     <Compile Include="run.py" />
     <Compile Include="Neuronudge\__init__.py" />
-    <Compile Include="Neuronudge\views.py" />
+    <Compile Include="Neuronudge\main.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Neuronudge\" />

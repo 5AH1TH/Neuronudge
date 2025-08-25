@@ -105,7 +105,7 @@
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-light fixed-top bg-white shadow-sm" role="navigation" aria-label="Main navigation">
     <div class="container">
-        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('views.home') }}" aria-label="Neuronudge homepage">
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.home') }}" aria-label="Neuronudge homepage">
             <i class="fa-solid fa-brain me-2" aria-hidden="true"></i> Neuronudge
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
@@ -117,12 +117,12 @@
             <ul class="navbar-nav ms-auto align-items-center" role="menubar">
                 {% if current_user.is_authenticated %}
                     <li class="nav-item" role="none">
-                        <a class="nav-link fw-semibold" href="{{ url_for('views.dashboard') }}" role="menuitem">
+                        <a class="nav-link fw-semibold" href="{{ url_for('main.dashboard') }}" role="menuitem">
                             <i class="fa-solid fa-house"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item" role="none">
-                        <a class="nav-link fw-semibold" href="{{ url_for('views.task_search') }}" role="menuitem">
+                        <a class="nav-link fw-semibold" href="{{ url_for('main.task_search') }}" role="menuitem">
                             <i class="fa-solid fa-magnifying-glass"></i> Search Tasks
                         </a>
                     </li>
@@ -133,13 +133,13 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown" id="profileDropdownMenu" role="menu">
                             <li role="none">
-                                <a class="dropdown-item" href="{{ url_for('views.onboarding') }}" role="menuitem">
+                                <a class="dropdown-item" href="{{ url_for('main.onboarding') }}" role="menuitem">
                                     <i class="fa-solid fa-gear"></i> Preferences
                                 </a>
                             </li>
                             <li role="none"><hr class="dropdown-divider" /></li>
                             <li role="none">
-                                <a class="dropdown-item" href="{{ url_for('views.profile') }}" role="menuitem">
+                                <a class="dropdown-item" href="{{ url_for('main.profile') }}" role="menuitem">
                                     <i class="fa-solid fa-id-card"></i> Profile
                                 </a>
                             </li>

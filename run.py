@@ -1,8 +1,11 @@
 import os
-from Neuronudge import create_app
+from Neuronudge import create_app, db
+from flask_migrate import Migrate
 
 # Create the Flask app using your factory pattern
 app = create_app()
+migrate = Migrate(app, db)
+
 
 if __name__ == "__main__":
     # Print URL for local dev convenience

@@ -71,7 +71,7 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
         <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="{{ url_for('views.dashboard') }}">Neuronudge Dyslexia</a>
+            <a class="navbar-brand fw-bold" href="{{ url_for('main.dashboard') }}">Neuronudge Dyslexia</a>
             <button
                 class="navbar-toggler"
                 type="button"
@@ -83,17 +83,17 @@
             <div class="collapse navbar-collapse" id="navbarContent">
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'views.dashboard' %}active{% endif %}" href="{{ url_for('views.dashboard') }}">
+                        <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
                             <i class="fa-solid fa-gauge"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'views.task_list' %}active{% endif %}" href="{{ url_for('views.task_list') }}">
+                        <a class="nav-link {% if request.endpoint == 'main.task_list' %}active{% endif %}" href="{{ url_for('main.task_list') }}">
                             <i class="fa-solid fa-list"></i> Tasks
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'views.onboarding' %}active{% endif %}" href="{{ url_for('views.onboarding') }}">
+                        <a class="nav-link {% if request.endpoint == 'main.onboarding' %}active{% endif %}" href="{{ url_for('main.onboarding') }}">
                             <i class="fa-solid fa-gear"></i> Preferences
                         </a>
                     </li>
@@ -109,7 +109,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="moreMenu">
                             <li>
-                                <a class="dropdown-item" href="{{ url_for('views.profile') }}">
+                                <a class="dropdown-item" href="{{ url_for('main.profile') }}">
                                     <i class="fa-solid fa-user"></i> Profile
                                 </a>
                             </li>

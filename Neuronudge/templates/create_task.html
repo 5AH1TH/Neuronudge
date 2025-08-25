@@ -3,7 +3,7 @@
 {% block content %}
 <h2>Create New Task</h2>
 
-<form method="POST" action="{{ url_for('views.create_task') }}">
+<form method="POST" action="{{ url_for('main.create_task') }}">
     {{ form.hidden_tag() }}
 
     <div>
@@ -48,7 +48,7 @@
 
     <div style="margin-top: 15px;">
         <button type="submit">Create Task</button>
-        <a href="{{ url_for('views.dashboard') }}">Cancel</a>
+        <a href="{{ url_for('main.dashboard') }}">Cancel</a>
     </div>
 </form>
 {% endblock %}

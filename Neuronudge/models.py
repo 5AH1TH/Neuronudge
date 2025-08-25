@@ -6,6 +6,7 @@ from flask_login import UserMixin
 from wtforms import SelectField
 from wtforms.validators import DataRequired
 from flask import url_for
+from sqlalchemy import JSON
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -21,7 +22,15 @@ class User(UserMixin, db.Model):
     preferences = db.relationship('OnboardingPreferences', back_populates='user', uselist=False)
     avatar_url = db.Column(db.String(300), default=None)
     registered_on = db.Column(db.DateTime, default=datetime.utcnow)
+    dashboard_features = db.Column(JSON, nullable=False, default=[])
 
+    feature_task_timer = db.Column(db.Boolean, default=False)
+    feature_task_stats = db.Column(db.Boolean, default=True)
+    feature_focus_mode = db.Column(db.Boolean, default=False)
+    feature_deadline_tracker = db.Column(db.Boolean, default=False)
+    feature_priority_sort = db.Column(db.Boolean, default=False)
+    feature_task_export = db.Column(db.Boolean, default=False)
+    feature_progress_graphs = db.Column(db.Boolean, default=False)
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 

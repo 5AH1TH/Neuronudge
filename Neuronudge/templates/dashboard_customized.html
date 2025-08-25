@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>Welcome, {{ current_user.name or current_user.username }}!</h2>
+
+<div class="dashboard-grid">
+    <!-- Timer Card -->
+    {% if "timer" in features or current_user.feature_timer %}
+    <div class="card">
+        <h4>Focus Timer</h4>
+        <button id="startFocus">Start</button>
+        <div id="focusTimerDisplay">00:00</div>
+        {% if current_user.feature_timer %}
+        <p>⏱ Task Timer Enabled</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Focus Mode Card -->
+    {% if "focus_mode" in features or current_user.feature_focus_mode %}
+    <div class="card">
+        <h4>Focus Mode</h4>
+        <button id="enterFocusMode">Enter Focus Mode</button>
+        {% if current_user.feature_focus_mode %}
+        <p>🎯 Focus Mode Enabled</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Task Stats Card -->
+    {% if "task_stats" in features or current_user.feature_task_stats %}
+    <div class="card">
+        <h4>Task Stats</h4>
+        <p>Total tasks: {{ task_counts.total }}</p>
+        <p>Pending: {{ task_counts.pending }}</p>
+        <p>Completed: {{ task_counts.completed }}</p>
+        {% if current_user.feature_task_stats %}
+        <p>📑 Task Summary Cards Enabled</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Custom Colors Card -->
+    {% if "custom_colors" in features or current_user.feature_custom_colors %}
+    <div class="card" style="background-color: #eef;">
+        <h4>Custom Theme</h4>
+        <p>Your dashboard has custom colors enabled!</p>
+        {% if current_user.feature_custom_colors %}
+        <p>🎨 Custom Color Theme Enabled</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Scroll Autostart Card -->
+    {% if "scroll_autostart" in features or current_user.feature_scroll_autostart %}
+    <div class="card">
+        <h4>Auto-scroll</h4>
+        <p>🔄 Auto-scroll when starting a task is enabled</p>
+    </div>
+    {% endif %}
+
+    <!-- Auto Reminders Card -->
+    {% if "auto_reminders" in features or current_user.feature_auto_reminders %}
+    <div class="card">
+        <h4>Reminders</h4>
+        <p>⏰ Due Soon Reminders Enabled</p>
+    </div>
+    {% endif %}
+</div>
+
+<hr>
+<p>Your customized dashboard is built from your selected features at registration 🎉</p>
+
+<!-- Focus Timer JS -->
+<script>
+let timer;
+document.getElementById("startFocus")?.addEventListener("click", function() {
+    let timeLeft = 1500; // 25 minutes default
+    timer = setInterval(() => {
+        let minutes = Math.floor(timeLeft / 60);
+        let seconds = timeLeft % 60;
+        document.getElementById("focusTimerDisplay").textContent =
+            `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        if (timeLeft <= 0) clearInterval(timer);
+        timeLeft--;
+    }, 1000);
+});
+</script>
+{% endblock %}

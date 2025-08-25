@@ -13,7 +13,8 @@ import os
 
 PACIFIC = pytz.timezone('US/Pacific')
 
-views = Blueprint('views', __name__)
+main = Blueprint("main", __name__)
+
 
 priority_map = {
     'high': 1,
@@ -39,7 +40,7 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
 
-@views.route('/dashboard')
+@main.route('/dashboard')
 @login_required
 def dashboard():
     page = request.args.get('page', 1, type=int)
@@ -49,7 +50,6 @@ def dashboard():
     filter_priority = request.args.get('priority', 'all')
     search_term = request.args.get('search', '').strip()
 
-    # Base query for all tasks owned by the current user
     base_query = Task.query.filter_by(user_id=current_user.id)
 
     if filter_status == 'completed':
@@ -94,19 +94,20 @@ def dashboard():
 
     onboarding = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
 
-    # 👇 NEW: Choose which dashboard template to render
     profile_type = getattr(current_user, "profile_type", "general").lower()
 
     if profile_type == "dyslexia":
         dashboard_template = "dashboard_dyslexia.html"
     elif profile_type == "adhd":
         dashboard_template = "dashboard_adhd.html"
+    elif profile_type == "custom":
+        dashboard_template = "dashboard_customized.html"
     else:
         dashboard_template = "dashboard.html"
 
     return render_template(
         dashboard_template,
-        tasks=tasks,   # 👈 still available in all templates
+        tasks=tasks,
         recent_tasks=recent_tasks,
         onboarding=onboarding,
         filter_status=filter_status,
@@ -114,11 +115,59 @@ def dashboard():
         search_term=search_term,
         task_counts=task_counts,
         pytz=pytz,
-        paginated_tasks=paginated_tasks
+        paginated_tasks=paginated_tasks,
+        features=current_user.dashboard_features or []
+    )
+
+@main.route("/dashboard/custom")
+@login_required
+def dashboard_customized():
+    # Example: fetch tasks for current user
+    tasks = Task.query.filter_by(user_id=current_user.id).all()
+    
+    # Example: compute recent tasks
+    recent_tasks = tasks[-5:]  # last 5 tasks
+
+    # Example: compute task counts
+    task_counts = {
+        "total": len(tasks),
+        "completed": sum(1 for t in tasks if t.completed),
+        "pending": sum(1 for t in tasks if not t.completed)
+    }
+
+    # Example: filter and search placeholders
+    filter_status = None
+    filter_priority = None
+    search_term = None
+    paginated_tasks = tasks  # or apply pagination if used
+    onboarding = False  # set True if first-time onboarding needed
+
+    # Features for conditional display
+    features = []
+    if current_user.feature_task_stats:
+        features.append("task_stats")
+    if current_user.feature_task_timer:
+        features.append("task_timer")
+    if current_user.feature_deadline_tracker:
+        features.append("deadline_tracker")
+    # Add other feature flags as needed
+
+    return render_template(
+        "dashboard_customized.html",
+        user=current_user,
+        tasks=tasks,
+        recent_tasks=recent_tasks,
+        task_counts=task_counts,
+        filter_status=filter_status,
+        filter_priority=filter_priority,
+        search_term=search_term,
+        paginated_tasks=paginated_tasks,
+        onboarding=onboarding,
+        features=features
     )
 
 
-@views.route('/onboarding', methods=['GET', 'POST'])
+@main.route('/onboarding', methods=['GET', 'POST'])
 @login_required
 def onboarding():
     form = OnboardingForm()
@@ -140,7 +189,7 @@ def onboarding():
         db.session.commit()
         flash("Preferences saved!", category='success')
         log_action(current_user.id, "Updated onboarding preferences")
-        return redirect(url_for('views.dashboard'))
+        return redirect(url_for('main.dashboard'))
     
     if existing:
         form.focus_time.data = existing.focus_time
@@ -149,7 +198,7 @@ def onboarding():
 
     return render_template('onboarding.html', form=form)
 
-@views.route('/task/new', methods=['GET', 'POST'])
+@main.route('/task/new', methods=['GET', 'POST'])
 @login_required
 def create_task():
     form = TaskForm()
@@ -188,12 +237,12 @@ def create_task():
 
         flash("Task added successfully!", category='success')
         log_action(current_user.id, f"Created task: {new_task.title}, date: {computed_due}")
-        return redirect(url_for('views.dashboard'))
+        return redirect(url_for('main.dashboard'))
 
     return render_template('create_task.html', form=form)
 
 
-@views.route('/task/edit/<int:id>', methods=['GET', 'POST'])
+@main.route('/task/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_task(id):
     task = Task.query.get_or_404(id)
@@ -230,12 +279,12 @@ def edit_task(id):
 
         flash("Task updated successfully!", category='success')
         log_action(current_user.id, f"Edited task from '{old_title}' to '{task.title}'")
-        return redirect(url_for('views.dashboard'))
+        return redirect(url_for('main.dashboard'))
 
     return render_template('edit_task.html', form=form, task=task)
 
 
-@views.route('/task/delete/<int:id>', methods=['POST'])
+@main.route('/task/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_task(id):
     task = Task.query.get_or_404(id)
@@ -253,10 +302,10 @@ def delete_task(id):
         db.session.rollback()
         flash(f"Error deleting task: {str(e)}", category='error')
 
-    return redirect(url_for('views.dashboard'))
+    return redirect(url_for('main.dashboard'))
 
 
-@views.route('/tasks/export')
+@main.route('/tasks/export')
 @login_required
 def export_tasks():
     tasks = Task.query.filter_by(user_id=current_user.id).all()
@@ -271,7 +320,7 @@ def export_tasks():
     log_action(current_user.id, "Exported tasks as JSON")
     return jsonify({'tasks': task_data})
 
-@views.route('/profile', methods=['GET', 'POST'])
+@main.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
     form = ProfileUpdateForm(obj=current_user)
@@ -291,10 +340,10 @@ def profile():
             db.session.commit()
             flash("Profile updated successfully.", category='success')
             log_action(current_user.id, f"Updated profile from username '{old_username}' to '{current_user.username}'")
-            return redirect(url_for('views.profile'))
+            return redirect(url_for('main.profile'))
     return render_template('profile.html', form=form, change_password_form=change_password_form)
 
-@views.route('/change-password', methods=['GET', 'POST'])
+@main.route('/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
     form = PasswordChangeForm()
@@ -306,11 +355,11 @@ def change_password():
             db.session.commit()
             flash("Password changed successfully!", category='success')
             log_action(current_user.id, "Changed password")
-            return redirect(url_for('views.profile'))
+            return redirect(url_for('main.profile'))
 
     return render_template('change_password.html', form=form)
 
-@views.route('/tasks/complete/<int:id>', methods=['POST'])
+@main.route('/tasks/complete/<int:id>', methods=['POST'])
 @login_required
 def toggle_task_completion(id):
     task = Task.query.get_or_404(id)
@@ -321,7 +370,7 @@ def toggle_task_completion(id):
     log_action(current_user.id, f"Toggled task completion for '{task.title}' to {task.completed}")
     return jsonify({"success": True, "completed": task.completed})
 
-@views.route('/tasks/reminder/<int:id>', methods=['POST'])
+@main.route('/tasks/reminder/<int:id>', methods=['POST'])
 @login_required
 def toggle_task_reminder(id):
     task = Task.query.get_or_404(id)
@@ -333,7 +382,7 @@ def toggle_task_reminder(id):
     return jsonify({"success": True, "reminder_set": task.reminder_set})
 
 # Bulk task operations
-@views.route('/tasks/bulk-complete', methods=['POST'])
+@main.route('/tasks/bulk-complete', methods=['POST'])
 @login_required
 def bulk_complete():
     task_ids = request.form.getlist('task_ids')
@@ -346,9 +395,9 @@ def bulk_complete():
     db.session.commit()
     flash(f"Marked {updated} tasks as completed.", category='success')
     log_action(current_user.id, f"Bulk marked {updated} tasks as completed")
-    return redirect(url_for('views.dashboard'))
+    return redirect(url_for('main.dashboard'))
 
-@views.route('/tasks/bulk-delete', methods=['POST'])
+@main.route('/tasks/bulk-delete', methods=['POST'])
 @login_required
 def bulk_delete():
     task_ids = request.form.getlist('task_ids')
@@ -361,10 +410,10 @@ def bulk_delete():
     db.session.commit()
     flash(f"Deleted {deleted} tasks.", category='info')
     log_action(current_user.id, f"Bulk deleted {deleted} tasks")
-    return redirect(url_for('views.dashboard'))
+    return redirect(url_for('main.dashboard'))
 
 # Advanced search page with detailed filters
-@views.route('/tasks/search', methods=['GET', 'POST'])
+@main.route('/tasks/search', methods=['GET', 'POST'])
 @login_required
 def task_search():
     title = request.args.get('title', '').strip()
@@ -387,24 +436,24 @@ def task_search():
 
     return render_template('task_search.html', results=results)
 
-@views.route('/tasks')
+@main.route('/tasks')
 @login_required
 def task_list():
     page = request.args.get('page', 1, type=int)
     tasks = Task.query.filter_by(user_id=current_user.id).paginate(page=page, per_page=10)
     return render_template('task_list.html', tasks=tasks)
 
-@views.route('/upload_avatar', methods=['POST'])
+@main.route('/upload_avatar', methods=['POST'])
 @login_required
 def upload_avatar():
     if 'avatar' not in request.files:
         flash("No file part.", "danger")
-        return redirect(url_for('views.profile'))
+        return redirect(url_for('main.profile'))
 
     file = request.files['avatar']
     if file.filename == '':
         flash("No selected file.", "warning")
-        return redirect(url_for('views.profile'))
+        return redirect(url_for('main.profile'))
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
@@ -416,24 +465,24 @@ def upload_avatar():
         db.session.commit()
 
         flash("Avatar updated successfully!", "success")
-        return redirect(url_for('views.profile'))
+        return redirect(url_for('main.profile'))
 
     flash("Invalid file type. Allowed: png, jpg, jpeg, gif", "danger")
-    return redirect(url_for('views.profile'))
+    return redirect(url_for('main.profile'))
 
 # Custom error handlers
-@views.app_errorhandler(404)
+@main.app_errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
 
-@views.app_errorhandler(403)
+@main.app_errorhandler(403)
 def forbidden(e):
     return render_template('403.html'), 403
 
-@views.app_errorhandler(500)
+@main.app_errorhandler(500)
 def internal_server_error(e):
     return render_template('500.html'), 500
 
-@views.route('/')
+@main.route('/')
 def home():
     return render_template('home.html', title='Home')

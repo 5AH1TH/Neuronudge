@@ -17,7 +17,7 @@ def login():
         if user and user.check_password(form.password.data):
             login_user(user)
             flash("Login successful!", category='success')
-            return redirect(url_for('views.dashboard'))
+            return redirect(url_for('main.dashboard'))
         else:
             flash("Invalid credentials.", category='error')
     return render_template('login.html', form=form)
@@ -44,13 +44,25 @@ def register():
                 email=form.email.data,
                 username=form.username.data,
                 password_hash=hashed_password,
-                profile_type=form.profile_type.data
+                profile_type=form.profile_type.data,
+                dashboard_features=form.get_selected_features(),
+
+                # ✅ Save feature selections
+                feature_task_timer=form.feature_task_timer.data,
+                feature_task_stats=form.feature_task_stats.data,
+                feature_focus_mode=form.feature_focus_mode.data,
+                feature_deadline_tracker=form.feature_deadline_tracker.data,
+                feature_priority_sort=form.feature_priority_sort.data,
+                feature_task_export=form.feature_task_export.data,
+                feature_progress_graphs=form.feature_progress_graphs.data
             )
             db.session.add(new_user)
             db.session.commit()
             login_user(new_user)
             flash("Registration successful!", category='success')
-            return redirect(url_for('views.dashboard'))
+
+            # redirect to customized dashboard
+            return redirect(url_for('main.dashboard_customized'))
     else:
         # If POST and there are errors, flash them so user sees why validation failed
         if request.method == 'POST' and form.errors:

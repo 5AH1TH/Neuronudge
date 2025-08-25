@@ -45,13 +45,13 @@
 
         <!-- Quick Actions -->
         <div class="d-flex flex-wrap gap-3 my-4" role="region" aria-label="Quick actions">
-            <a href="{{ url_for('views.create_task') }}" class="btn btn-lg btn-primary" aria-label="Create new task">
+            <a href="{{ url_for('main.create_task') }}" class="btn btn-lg btn-primary" aria-label="Create new task">
                 <i class="fa-solid fa-plus me-2"></i> New Task
             </a>
-            <a href="{{ url_for('views.task_list') }}" class="btn btn-lg btn-outline-secondary" aria-label="View all tasks">
+            <a href="{{ url_for('main.task_list') }}" class="btn btn-lg btn-outline-secondary" aria-label="View all tasks">
                 <i class="fa-solid fa-list me-2"></i> All Tasks
             </a>
-            <a href="{{ url_for('views.onboarding') }}" class="btn btn-lg btn-outline-info" aria-label="Update preferences">
+            <a href="{{ url_for('main.onboarding') }}" class="btn btn-lg btn-outline-info" aria-label="Update preferences">
                 <i class="fa-solid fa-gear me-2"></i> Preferences
             </a>
         </div>
@@ -103,7 +103,7 @@
                                 >
                                     ▶ Start Task
                                 </button>
-                                <a href="{{ url_for('views.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary" aria-label="Edit task {{ task.title }}">
+                                <a href="{{ url_for('main.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary" aria-label="Edit task {{ task.title }}">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </a>
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-delete-task" data-task-id="{{ task.id }}" aria-label="Delete task {{ task.title }}">

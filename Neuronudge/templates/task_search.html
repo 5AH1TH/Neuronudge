@@ -3,7 +3,7 @@
 {% block content %}
 <h2>Search Tasks</h2>
 
-<form method="GET" action="{{ url_for('views.task_search') }}" role="search">
+<form method="GET" action="{{ url_for('main.task_search') }}" role="search">
     <div>
         <label for="title">Title</label>
         <input type="text" name="title" id="title" value="{{ request.args.get('title', '') }}">
