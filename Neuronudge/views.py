@@ -89,6 +89,7 @@ def dashboard():
 
     task_form = TaskForm()
 
+    # Keep your recent_tasks exactly as-is
     recent_tasks = Task.query.filter_by(user_id=current_user.id).order_by(
         Task.priority.asc(),
         Task.due_date.asc().nulls_last()
@@ -107,10 +108,47 @@ def dashboard():
     else:
         dashboard_template = "dashboard.html"
 
+    
+    # ============================
+    # NEW: provide recent_activity
+    # ============================
+
+    ActivityLog = Task.query.filter_by(user_id=current_user.id).order_by(
+        Task.updated_at.desc()
+    ).limit(10).all()
+    
+    try:
+        recent_activity = ActivityLog.query.filter_by(user_id=current_user.id) \
+            .order_by(ActivityLog.timestamp.desc()) \
+            .limit(10).all()
+    except Exception:
+        recent_activity = []
+
+    # Fallback if no ActivityLog rows yet: synthesize simple activity items from Tasks
+    if not recent_activity:
+        class _SimpleActivity:
+            __slots__ = ("description", "timestamp")
+            def __init__(self, description, timestamp):
+                self.description = description
+                self.timestamp = timestamp
+
+        task_feed = Task.query.filter_by(user_id=current_user.id) \
+            .order_by(Task.updated_at.desc().nulls_last(), Task.created_at.desc().nulls_last()) \
+            .limit(10).all()
+
+        recent_activity = [
+            _SimpleActivity(
+                f"Task “{t.title}” — status: {t.status or ('completed' if t.completed else 'pending')}",
+                (t.updated_at or t.created_at or datetime.utcnow())
+            )
+            for t in task_feed
+        ]
+    
     return render_template(
         dashboard_template,
         tasks=tasks,
         recent_tasks=recent_tasks,
+        recent_activity=recent_activity,  # <-- pass it to ALL dashboards
         onboarding=onboarding,
         filter_status=filter_status,
         filter_priority=filter_priority,
@@ -121,6 +159,7 @@ def dashboard():
         paginated_tasks=paginated_tasks,
         features=current_user.dashboard_features or []
     )
+
 
 @main.route('/dashboard/custom', methods=['GET', 'POST'])
 @login_required
