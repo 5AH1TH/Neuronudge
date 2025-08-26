@@ -598,6 +598,20 @@ def upload_avatar():
     flash("Invalid file type. Allowed: png, jpg, jpeg, gif", "danger")
     return redirect(url_for('main.profile'))
 
+@main.route('/task/update_status/<int:id>', methods=['POST'])
+@login_required
+def update_status(id):
+    task = Task.query.get_or_404(id)
+    data = request.get_json()
+    new_status = data.get('status')
+    if new_status in ['not started', 'in progress', 'completed']:
+        task.status = new_status
+        if new_status == 'completed':
+            task.completed = True
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False}), 400
+
 # Custom error handlers
 @main.app_errorhandler(404)
 def page_not_found(e):

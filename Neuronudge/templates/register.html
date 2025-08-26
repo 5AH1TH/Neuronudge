@@ -100,7 +100,8 @@
 
             <button type="submit" class="btn btn-primary w-100" aria-label="Submit registration form">Register</button>
         </form>
-
+        </div>
+        
         <hr class="my-4" />
         <p class="text-center">
             Already have an account?
@@ -128,7 +129,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Run on page load in case "custom" is pre-selected
     toggleFeatures();
-
     // Listen for profile type changes
     profileSelect.addEventListener('change', toggleFeatures);
 });

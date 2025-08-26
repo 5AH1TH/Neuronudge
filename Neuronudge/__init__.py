@@ -22,8 +22,8 @@ def create_app():
     # --- Configuration ---
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SECRET_KEY'] = 'dev'  # replace with a strong secret in production
-
+    app.config['SECRET_KEY'] = 'dev' #Replace later
+    app.config['ALLOWED_EXTENSIONS'] = {"png","jpg","jpeg","gif"}
     # --- Initialize extensions with app ---
     db.init_app(app)
     migrate.init_app(app, db)
