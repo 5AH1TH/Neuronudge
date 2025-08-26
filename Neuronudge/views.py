@@ -87,6 +87,8 @@ def dashboard():
         'overdue': overdue_tasks
     }
 
+    task_form = TaskForm()
+
     recent_tasks = Task.query.filter_by(user_id=current_user.id).order_by(
         Task.priority.asc(),
         Task.due_date.asc().nulls_last()
@@ -114,48 +116,172 @@ def dashboard():
         filter_priority=filter_priority,
         search_term=search_term,
         task_counts=task_counts,
+        task_form=task_form,
         pytz=pytz,
         paginated_tasks=paginated_tasks,
         features=current_user.dashboard_features or []
     )
 
-@main.route("/dashboard/custom")
+@main.route('/dashboard/custom', methods=['GET', 'POST'])
 @login_required
 def dashboard_customized():
-    # Example: fetch tasks for current user
-    tasks = Task.query.filter_by(user_id=current_user.id).all()
-    
-    # Example: compute recent tasks
-    recent_tasks = tasks[-5:]  # last 5 tasks
+    """
+    Fully functional dashboard_customized route:
+    - Shows paginated task table
+    - Handles inline 'Add Task' form (TaskForm) POST
+    - Computes task_counts, recent_tasks, paginated_tasks
+    - Builds features list from booleans + dashboard_features JSON
+    """
+    # --- Forms ---
+    task_form = TaskForm()
 
-    # Example: compute task counts
+    # --- Handle inline add-task POST (from the modal or side form) ---
+    if task_form.validate_on_submit():
+        # compute due_date: treat date as PACIFIC end of day (23:59) and store UTC naive
+        computed_due = None
+        if getattr(task_form, 'due_date', None) and task_form.due_date.data:
+            local_due = datetime.combine(task_form.due_date.data, time(23, 59))
+            local_due = PACIFIC.localize(local_due)
+            computed_due = local_due.astimezone(pytz.UTC).replace(tzinfo=None)
+        else:
+            # fallback: use onboarding focus time or default 25 minutes from now (pacific)
+            prefs = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
+            focus_minutes = int(prefs.focus_time) if prefs and prefs.focus_time else 25
+            now_local = datetime.now(PACIFIC)
+            local_due = now_local + timedelta(minutes=focus_minutes)
+            computed_due = local_due.astimezone(pytz.UTC).replace(tzinfo=None)
+
+        try:
+            new_task = Task(
+                title = task_form.title.data,
+                description = getattr(task_form, 'description', None) and task_form.description.data or '',
+                completed = False,
+                due_date = computed_due,
+                priority = int(task_form.priority.data) if task_form.priority.data else None,
+                reminder_set = bool(getattr(task_form, 'reminder_set', False) and task_form.reminder_set.data),
+                user_id = current_user.id
+            )
+            db.session.add(new_task)
+            db.session.commit()
+            flash("Task created", category='success')
+            return redirect(url_for('main.dashboard_customized'))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.exception("Error creating task")
+            flash(f"Could not create task: {e}", category='error')
+            # don't return here; continue to render dashboard so user sees errors
+
+    # --- Pagination / filters / query building ---
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    filter_status = request.args.get('status', 'all')
+    filter_priority = request.args.get('priority', 'all')
+    search_term = request.args.get('search', '').strip()
+
+    base_query = Task.query.filter_by(user_id=current_user.id)
+
+    if filter_status == 'completed':
+        base_query = base_query.filter_by(completed=True)
+    elif filter_status == 'pending':
+        base_query = base_query.filter_by(completed=False)
+
+    if filter_priority in ['1', '2', '3']:
+        base_query = base_query.filter_by(priority=int(filter_priority))
+
+    if search_term:
+        # use ilike if supported; fallback to like in SQLite
+        try:
+            base_query = base_query.filter(Task.title.ilike(f'%{search_term}%'))
+        except Exception:
+            base_query = base_query.filter(Task.title.like(f'%{search_term}%'))
+
+    # ordering: priority asc, then due_date ascending (nulls last)
+    try:
+        ordered_query = base_query.order_by(Task.priority.asc(), Task.due_date.asc().nulls_last())
+    except Exception:
+        # if `.nulls_last()` not available, just order by due_date asc
+        ordered_query = base_query.order_by(Task.priority.asc(), Task.due_date.asc())
+
+    paginated_tasks = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # full list for some widgets (non-paginated)
+    tasks_all = Task.query.filter_by(user_id=current_user.id).all()
+
+    # --- recent tasks and counts ---
+    recent_tasks = Task.query.filter_by(user_id=current_user.id).order_by(Task.created_at.desc()).limit(10).all()
+
+    total_tasks = Task.query.filter_by(user_id=current_user.id).count()
+    pending_tasks = Task.query.filter_by(user_id=current_user.id, completed=False).count()
+    completed_tasks = Task.query.filter_by(user_id=current_user.id, completed=True).count()
+    overdue_tasks = Task.query.filter(
+        Task.user_id == current_user.id,
+        Task.completed == False,
+        Task.due_date != None,
+        Task.due_date < datetime.utcnow()
+    ).count()
+
     task_counts = {
-        "total": len(tasks),
-        "completed": sum(1 for t in tasks if t.completed),
-        "pending": sum(1 for t in tasks if not t.completed)
+        'total': total_tasks,
+        'pending': pending_tasks,
+        'completed': completed_tasks,
+        'overdue': overdue_tasks
     }
 
-    # Example: filter and search placeholders
-    filter_status = None
-    filter_priority = None
-    search_term = None
-    paginated_tasks = tasks  # or apply pagination if used
-    onboarding = False  # set True if first-time onboarding needed
+    onboarding = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
 
-    # Features for conditional display
-    features = []
-    if current_user.feature_task_stats:
-        features.append("task_stats")
-    if current_user.feature_task_timer:
-        features.append("task_timer")
-    if current_user.feature_deadline_tracker:
-        features.append("deadline_tracker")
-    # Add other feature flags as needed
+    # --- Build features list (honor DB JSON if present plus boolean flags) ---
+    features = set()
+    # If you store a JSON array in current_user.dashboard_features use it
+    try:
+        if current_user.dashboard_features:
+            # if it's stored as JSON list already, it should be usable; otherwise guard
+            if isinstance(current_user.dashboard_features, (list, tuple, set)):
+                features.update(current_user.dashboard_features)
+            else:
+                # if it's a JSON string, try to parse
+                import json
+                try:
+                    parsed = json.loads(current_user.dashboard_features)
+                    if isinstance(parsed, (list, tuple, set)):
+                        features.update(parsed)
+                except Exception:
+                    # ignore parsing errors
+                    pass
+    except Exception:
+        pass
+
+    # Map boolean user flags to feature keys used by template
+    if getattr(current_user, 'feature_timer', False):
+        features.add('timer')
+    if getattr(current_user, 'feature_focus_mode', False):
+        features.add('focus_mode')
+    if getattr(current_user, 'feature_scroll_autostart', False):
+        features.add('scroll_autostart')
+    if getattr(current_user, 'feature_task_stats', False):
+        features.add('task_stats')
+    if getattr(current_user, 'feature_task_timer', False):
+        features.add('task_timer')
+    if getattr(current_user, 'feature_deadline_tracker', False):
+        features.add('deadline_tracker')
+    if getattr(current_user, 'feature_custom_colors', False):
+        features.add('custom_colors')
+    if getattr(current_user, 'feature_auto_reminders', False):
+        features.add('auto_reminders')
+    if getattr(current_user, 'feature_priority_sort', False):
+        features.add('priority_sort')
+    if getattr(current_user, 'feature_task_export', False):
+        features.add('task_export')
+    if getattr(current_user, 'feature_progress_graphs', False):
+        features.add('progress_graphs')
+
+    # Ensure features is a list before sending to template
+    features = sorted(list(features))
 
     return render_template(
-        "dashboard_customized.html",
+        'dashboard_customized.html',
         user=current_user,
-        tasks=tasks,
+        tasks=tasks_all,
         recent_tasks=recent_tasks,
         task_counts=task_counts,
         filter_status=filter_status,
@@ -163,8 +289,10 @@ def dashboard_customized():
         search_term=search_term,
         paginated_tasks=paginated_tasks,
         onboarding=onboarding,
-        features=features
+        features=features,
+        task_form=task_form
     )
+
 
 
 @main.route('/onboarding', methods=['GET', 'POST'])

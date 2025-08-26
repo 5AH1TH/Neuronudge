@@ -1,88 +1,460 @@
 {% extends "layout.html" %}
 {% block content %}
-<h2>Welcome, {{ current_user.name or current_user.username }}!</h2>
+<div class="container py-4">
 
-<div class="dashboard-grid">
-    <!-- Timer Card -->
-    {% if "timer" in features or current_user.feature_timer %}
-    <div class="card">
-        <h4>Focus Timer</h4>
-        <button id="startFocus">Start</button>
-        <div id="focusTimerDisplay">00:00</div>
-        {% if current_user.feature_timer %}
-        <p>⏱ Task Timer Enabled</p>
+  <!-- =========================================================
+       HEADER
+  ========================================================== -->
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+      <h1 class="display-5 mb-1">Dashboard</h1>
+      <p class="text-muted mb-0">Welcome back, {{ current_user.name or current_user.username }}!</p>
+    </div>
+
+    <!-- Feature badges (compact) -->
+    <div class="d-none d-md-block">
+      {% for f in features %}
+        <span class="badge bg-secondary me-1 text-capitalize">{{ f.replace('_',' ') }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- =========================================================
+       TOP STATS CARDS
+  ========================================================== -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-3">
+      <div class="card h-100 border-primary">
+        <div class="card-body text-center">
+          <div class="h1 mb-0">{{ task_counts.total }}</div>
+          <div class="text-muted">Total Tasks</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card h-100 border-warning">
+        <div class="card-body text-center">
+          <div class="h1 mb-0">{{ task_counts.pending }}</div>
+          <div class="text-muted">Pending</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card h-100 border-success">
+        <div class="card-body text-center">
+          <div class="h1 mb-0">{{ task_counts.completed }}</div>
+          <div class="text-muted">Completed</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card h-100 border-danger">
+        <div class="card-body text-center">
+          <div class="h1 mb-0">{{ task_counts.overdue }}</div>
+          <div class="text-muted">Overdue</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       ACTION BAR
+  ========================================================== -->
+  <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newTaskModal">
+      <i class="bi bi-plus-lg"></i> New Task
+    </button>
+
+    <a href="{{ url_for('main.task_list') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-list-ul"></i> All Tasks
+    </a>
+
+    <a href="{{ url_for('main.onboarding') }}" class="btn btn-outline-info">
+      <i class="bi bi-gear"></i> Preferences
+    </a>
+
+    {% if 'task_export' in features or current_user.feature_task_export %}
+    <button id="exportTasksBtn" class="btn btn-outline-dark">
+      <i class="bi bi-box-arrow-up-right"></i> Export
+    </button>
+    {% endif %}
+
+    <!-- Filters / Search (optional UI only) -->
+    <div class="ms-auto d-flex flex-wrap gap-2">
+      <form class="d-flex" method="get" action="{{ url_for('main.dashboard_customized') }}">
+        <input name="q" value="{{ search_term or '' }}" class="form-control" placeholder="Search tasks…">
+        <button class="btn btn-outline-secondary ms-2">Search</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- =======================================================
+         LEFT: TASK TABLE + RECENT ACTIVITY
+    ======================================================== -->
+    <div class="col-12 col-lg-8">
+      <!-- Task table -->
+      <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <strong>Tasks</strong>
+          <div class="d-flex align-items-center gap-2">
+            <select id="clientFilterStatus" class="form-select form-select-sm" style="width:auto">
+              <option value="">All</option>
+              <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>Pending</option>
+              <option value="completed" {% if filter_status == 'completed' %}selected{% endif %}>Completed</option>
+            </select>
+            <select id="clientFilterPriority" class="form-select form-select-sm" style="width:auto">
+              <option value="">Any Priority</option>
+              <option value="1" {% if filter_priority == 1 %}selected{% endif %}>High</option>
+              <option value="2" {% if filter_priority == 2 %}selected{% endif %}>Medium</option>
+              <option value="3" {% if filter_priority == 3 %}selected{% endif %}>Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th style="min-width:220px">Task</th>
+                  <th>Due</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tasksTableBody">
+                {% if paginated_tasks.items is defined %}
+                  {% for t in paginated_tasks.items %}
+                    <tr data-status="{{ 'completed' if t.completed else 'pending' }}" data-priority="{{ t.priority or 3 }}">
+                      <td>
+                        <div class="fw-semibold">{{ t.title }}</div>
+                        {% if t.description %}
+                          <div class="small text-muted">{{ t.description }}</div>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if t.due_date %}
+                          {{ t.due_date.strftime('%b %d, %Y') }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% set p = t.priority or 3 %}
+                        {% if p == 1 %}
+                          <span class="badge bg-danger">High</span>
+                        {% elif p == 2 %}
+                          <span class="badge bg-warning text-dark">Medium</span>
+                        {% else %}
+                          <span class="badge bg-secondary">Low</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if t.completed %}
+                          <span class="badge bg-success">Completed</span>
+                        {% else %}
+                          <span class="badge bg-info text-dark">Pending</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-end">
+                        {% if 'timer' in features or current_user.feature_timer %}
+                        <button class="btn btn-sm btn-success start-inline-timer" data-task-id="{{ t.id }}" title="Start Focus Timer">
+                          <i class="bi bi-play-fill"></i> Start
+                        </button>
+                        {% endif %}
+                        <a href="{{ url_for('main.edit_task', id=t.id) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil-square"></i></a>
+                        <form method="post" action="{{ url_for('main.delete_task', id=t.id) }}" style="display:inline;" onsubmit="return confirm('Delete this task?');">
+                          <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                        </form>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                {% else %}
+                  {% for t in paginated_tasks %}
+                    <tr data-status="{{ 'completed' if t.completed else 'pending' }}" data-priority="{{ t.priority or 3 }}">
+                      <td>
+                        <div class="fw-semibold">{{ t.title }}</div>
+                        {% if t.description %}
+                          <div class="small text-muted">{{ t.description }}</div>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if t.due_date %}
+                          {{ t.due_date.strftime('%b %d, %Y') }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% set p = t.priority or 3 %}
+                        {% if p == 1 %}
+                          <span class="badge bg-danger">High</span>
+                        {% elif p == 2 %}
+                          <span class="badge bg-warning text-dark">Medium</span>
+                        {% else %}
+                          <span class="badge bg-secondary">Low</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if t.completed %}
+                          <span class="badge bg-success">Completed</span>
+                        {% else %}
+                          <span class="badge bg-info text-dark">Pending</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-end">
+                        {% if 'timer' in features or current_user.feature_timer %}
+                        <button class="btn btn-sm btn-success start-inline-timer" data-task-id="{{ t.id }}" title="Start Focus Timer">
+                          <i class="bi bi-play-fill"></i> Start
+                        </button>
+                        {% endif %}
+                        <a href="{{ url_for('main.edit_task', id=t.id) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil-square"></i></a>
+                        <form method="post" action="{{ url_for('main.delete_task', id=t.id) }}" style="display:inline;" onsubmit="return confirm('Delete this task?');">
+                          <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                        </form>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                {% endif %}
+                {% if (paginated_tasks.items is defined and paginated_tasks.items|length == 0) or (paginated_tasks is iterable and (paginated_tasks|length == 0)) %}
+                  <tr>
+                    <td colspan="5" class="text-muted">No tasks yet — create your first task!</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Pagination (if available) -->
+        {% if paginated_tasks.pages is defined %}
+        <div class="card-footer">
+          <nav>
+            <ul class="pagination mb-0">
+              {% if paginated_tasks.has_prev %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('main.dashboard_customized', page=paginated_tasks.prev_num) }}">Prev</a></li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">Prev</span></li>
+              {% endif %}
+              <li class="page-item disabled"><span class="page-link">Page {{ paginated_tasks.page }} / {{ paginated_tasks.pages }}</span></li>
+              {% if paginated_tasks.has_next %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('main.dashboard_customized', page=paginated_tasks.next_num) }}">Next</a></li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">Next</span></li>
+              {% endif %}
+            </ul>
+          </nav>
+        </div>
         {% endif %}
+      </div>
+
+      <!-- Recent activity -->
+      <div class="card mb-4">
+        <div class="card-header"><strong>Recent Activity</strong></div>
+        <ul class="list-group list-group-flush">
+          {% for t in recent_tasks %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ t.title }}</strong>
+                <div class="small text-muted">
+                  Due: {% if t.due_date %}{{ t.due_date.strftime('%b %d, %Y') }}{% else %}—{% endif %}
+                </div>
+              </div>
+              <div class="text-end small">
+                {% if t.completed %}
+                  <span class="text-success">Completed</span>
+                {% else %}
+                  <span class="text-muted">Pending</span>
+                {% endif %}
+              </div>
+            </li>
+          {% else %}
+            <li class="list-group-item text-muted">No recent activity</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <!-- =======================================================
+         RIGHT: FEATURE CARDS (CONDITIONAL)
+    ======================================================== -->
+    <div class="col-12 col-lg-4">
+    <!-- Add Task (inline) -->
+    <div class="card mb-3">
+        <div class="card-body">
+        <h5 class="card-title mb-3">Add Task</h5>
+        <form method="post" action="{{ url_for('main.dashboard_customized') }}">
+            {{ task_form.hidden_tag() }}
+            <div class="mb-2">
+            {{ task_form.title(class="form-control", placeholder="Task title") }}
+            {% if task_form.title.errors %}
+                <div class="text-danger small">{{ task_form.title.errors[0] }}</div>
+            {% endif %}
+            </div>
+            <div class="mb-2">
+            {{ task_form.description(class="form-control", placeholder="Description (optional)", rows="3") }}
+            </div>
+            <div class="mb-2">
+            {{ task_form.due_date(class="form-control") }}
+            </div>
+            <div class="mb-2 d-flex gap-2 align-items-center">
+            {{ task_form.priority(class="form-select w-50") }}
+            <div class="form-check">
+                {{ task_form.reminder_set(class="form-check-input", id="remSetInline") }}
+                <label class="form-check-label small" for="remSetInline">Reminder</label>
+            </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 mt-2">
+            <i class="bi bi-plus-lg"></i> Add Task
+            </button>
+        </form>
+        </div>
+    </div>
+
+
+    <!-- Quick Stats / Gamification -->
+    {% if 'gamification' in features or current_user.feature_gamification %}
+    <div class="card mb-3">
+        <div class="card-header"><strong>Gamification</strong></div>
+        <div class="card-body text-center">
+        <div class="h2">{{ current_user.points|default(0) }}</div>
+        <small class="text-muted">Points</small>
+        <div class="mt-2">
+            <div class="progress">
+            <div class="progress-bar" role="progressbar"
+                data-points="{{ current_user.points_percentage|default(0)|int }}"
+                aria-valuemin="0" aria-valuemax="100">
+            </div>
+            </div>
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('.progress-bar[data-points]').forEach(bar => {
+                    const value = bar.dataset.points || 0;
+                    bar.style.width = value + '%';
+                    bar.setAttribute('aria-valuenow', value);
+                });
+            });
+            </script>
+        </div>
+        <small class="text-muted">Level {{ current_user.level|default(1) }}</small>
+        </div>
     </div>
     {% endif %}
 
-    <!-- Focus Mode Card -->
-    {% if "focus_mode" in features or current_user.feature_focus_mode %}
-    <div class="card">
-        <h4>Focus Mode</h4>
-        <button id="enterFocusMode">Enter Focus Mode</button>
-        {% if current_user.feature_focus_mode %}
-        <p>🎯 Focus Mode Enabled</p>
-        {% endif %}
+    <!-- Tips / Motivational Cards -->
+    {% if 'tips' in features or current_user.feature_tips %}
+    <div class="card mb-3">
+        <div class="card-header"><strong>Daily Tips</strong></div>
+        <div class="card-body">
+        {% for tip in daily_tips %}
+            <p class="mb-2"><i class="bi bi-lightbulb-fill text-warning"></i> {{ tip }}</p>
+        {% else %}
+            <p class="text-muted mb-0">No tips for today.</p>
+        {% endfor %}
+        </div>
     </div>
     {% endif %}
 
-    <!-- Task Stats Card -->
-    {% if "task_stats" in features or current_user.feature_task_stats %}
-    <div class="card">
-        <h4>Task Stats</h4>
-        <p>Total tasks: {{ task_counts.total }}</p>
-        <p>Pending: {{ task_counts.pending }}</p>
-        <p>Completed: {{ task_counts.completed }}</p>
-        {% if current_user.feature_task_stats %}
-        <p>📑 Task Summary Cards Enabled</p>
-        {% endif %}
-    </div>
-    {% endif %}
+    <!-- Quick Reminders -->
+    {% if 'reminders' in features or current_user.feature_reminders %}
+    <div class="card mb-3">
+    <div class="card-header"><strong>Upcoming Reminders</strong></div>
+    <ul class="list-group list-group-flush">
+      {% for r in reminders %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ r.task.title }}</span>
+          <small class="text-muted">{{ r.remind_at.strftime('%b %d %H:%M') }}</small>
+        </li>
+      {% else %}
+        <li class="list-group-item text-muted">No upcoming reminders</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 
-    <!-- Custom Colors Card -->
-    {% if "custom_colors" in features or current_user.feature_custom_colors %}
-    <div class="card" style="background-color: #eef;">
-        <h4>Custom Theme</h4>
-        <p>Your dashboard has custom colors enabled!</p>
-        {% if current_user.feature_custom_colors %}
-        <p>🎨 Custom Color Theme Enabled</p>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    <!-- Scroll Autostart Card -->
-    {% if "scroll_autostart" in features or current_user.feature_scroll_autostart %}
-    <div class="card">
-        <h4>Auto-scroll</h4>
-        <p>🔄 Auto-scroll when starting a task is enabled</p>
-    </div>
-    {% endif %}
-
-    <!-- Auto Reminders Card -->
-    {% if "auto_reminders" in features or current_user.feature_auto_reminders %}
-    <div class="card">
-        <h4>Reminders</h4>
-        <p>⏰ Due Soon Reminders Enabled</p>
-    </div>
-    {% endif %}
+</div>
+  </div>
 </div>
 
-<hr>
-<p>Your customized dashboard is built from your selected features at registration 🎉</p>
+<!-- =========================================================
+     NEW TASK MODAL
+========================================================== -->
+<div class="modal fade" id="newTaskModal" tabindex="-1" aria-labelledby="newTaskModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('main.dashboard_customized') }}">
+        {{ task_form.hidden_tag() }}
+        <div class="modal-header">
+          <h5 class="modal-title" id="newTaskModalLabel">New Task</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            {{ task_form.title(class="form-control", placeholder="Task Title") }}
+            {% if task_form.title.errors %}
+              <div class="text-danger small">{{ task_form.title.errors[0] }}</div>
+            {% endif %}
+          </div>
+          <div class="mb-3">
+            {{ task_form.description(class="form-control", placeholder="Description", rows="3") }}
+          </div>
+          <div class="mb-3">
+            {{ task_form.due_date(class="form-control") }}
+          </div>
+          <div class="mb-3">
+            {{ task_form.priority(class="form-select") }}
+          </div>
+          <div class="form-check mb-3">
+            {{ task_form.reminder_set(class="form-check-input", id="remSetModal") }}
+            <label class="form-check-label" for="remSetModal">Set Reminder</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
-<!-- Focus Timer JS -->
+<!-- =========================================================
+     CUSTOM SCRIPT SECTION
+========================================================== -->
+{% block scripts %}
 <script>
-let timer;
-document.getElementById("startFocus")?.addEventListener("click", function() {
-    let timeLeft = 1500; // 25 minutes default
-    timer = setInterval(() => {
-        let minutes = Math.floor(timeLeft / 60);
-        let seconds = timeLeft % 60;
-        document.getElementById("focusTimerDisplay").textContent =
-            `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        if (timeLeft <= 0) clearInterval(timer);
-        timeLeft--;
-    }, 1000);
+document.addEventListener('DOMContentLoaded', function() {
+  // Export tasks
+  const exportBtn = document.getElementById('exportTasksBtn');
+  if(exportBtn){
+    exportBtn.addEventListener('click', () => {
+      fetch('{{ url_for("main.export_tasks") }}')
+        .then(r => r.blob())
+        .then(blob => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'tasks.json';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        });
+    });
+  }
+
+  // Inline focus timers
+  document.querySelectorAll('.start-inline-timer').forEach(btn => {
+    btn.addEventListener('click', function(){
+      const taskId = this.dataset.taskId;
+      alert('Starting focus timer for task ' + taskId);
+      // Implement timer logic here
+    });
+  });
 });
 </script>
 {% endblock %}
+
+{% endblock %}
+
+
