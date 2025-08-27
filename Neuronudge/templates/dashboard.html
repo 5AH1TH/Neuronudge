@@ -48,24 +48,23 @@
             <a href="{{ url_for('main.create_task') }}" class="btn btn-lg btn-primary" aria-label="Create new task">
                 <i class="fa-solid fa-plus me-2"></i> New Task
             </a>
+
             <a href="{{ url_for('main.task_list') }}" class="btn btn-lg btn-outline-secondary" aria-label="View all tasks">
                 <i class="fa-solid fa-list me-2"></i> All Tasks
             </a>
-            <a href="{{ url_for('main.onboarding') }}" class="btn btn-outline-info">
-                <i class="bi bi-gear"></i> Preferences
-            </a>
-            <a href="{{ url_for('main.dashboard_graphs') }}" class="btn btn-outline-primary ms-2">
-                <i class="bi bi-bar-chart"></i> Graphs
-            </a>
 
+            <a href="{{ url_for('main.onboarding') }}" class="btn btn-lg btn-outline-info" aria-label="Open preferences">
+                <i class="bi bi-gear me-2"></i> Preferences
+            </a>
 
             {% if current_user.profile != 'ADHD' %}
-            <a href="{{ url_for('main.dashboard_graphs') }}" class="btn btn-outline-success">
-                <i class="bi bi-bar-chart-line"></i> Graphs
+            <a href="{{ url_for('main.dashboard_graphs') }}" class="btn btn-lg btn-outline-primary" aria-label="View task graphs">
+                <i class="bi bi-bar-chart me-2"></i> Graphs
             </a>
-            {% endif %}
 
+            {% endif %}
         </div>
+
 
         <!-- Task Overview Table -->
         <div class="table-responsive shadow-sm rounded border mb-5">
