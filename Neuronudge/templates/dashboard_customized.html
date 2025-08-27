@@ -71,6 +71,11 @@
       <i class="bi bi-gear"></i> Preferences
     </a>
 
+    <a href="{{ url_for('main.dashboard_graphs') }}" class="btn btn-outline-primary ms-2">
+      <i class="bi bi-bar-chart"></i> Graphs
+    </a>
+
+
     {% if 'task_export' in features or current_user.feature_task_export %}
     <button id="exportTasksBtn" class="btn btn-outline-dark">
       <i class="bi bi-box-arrow-up-right"></i> Export
@@ -380,16 +385,59 @@
 ========================================================== -->
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
 
-  // =========================================================
-  // Export tasks
-  // =========================================================
-  const exportBtn = document.getElementById('exportTasksBtn');
-  if (exportBtn) {
-    exportBtn.addEventListener('click', () => {
-      fetch('{{ url_for("main.export_tasks") }}')
-        .then(r => r.blob())
+document.addEventListener('DOMContentLoaded', function () {
+
+  // --------------------------
+  // Feature set (safe Jinja -> JS)
+  // Use default([]) so the template always emits a valid JSON array even if `features` is undefined.
+  // --------------------------
+  const enabledFeatures = new Set(JSON.parse('{{ (features|default([]))|tojson|safe }}'));
+  function hasFeature(name) { return enabledFeatures.has(name); }
+  window.dashboardFeatures = Array.from(enabledFeatures); // for debugging in browser console
+
+  // --------------------------
+  // CSRF helper (safe fallback)
+  // --------------------------
+  function getCsrfToken() {
+    const csrfInput = document.querySelector('input[name="csrf_token"]');
+    if (csrfInput && csrfInput.value) return csrfInput.value;
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.getAttribute('content');
+    // sometimes Flask-WTF exposes csrf_token() as a global; avoid using template function in JS
+    return null;
+  }
+  const CSRF_TOKEN = getCsrfToken();
+
+  // --------------------------
+  // Generic POST JSON helper
+  // --------------------------
+  function postJSON(url, payload) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (CSRF_TOKEN) headers['X-CSRFToken'] = CSRF_TOKEN;
+    return fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+  }
+
+  // --------------------------
+  // EXPORT TASKS
+  // --------------------------
+  (function setupExport() {
+    const btn = document.getElementById('exportTasksBtn');
+    if (!btn) return;
+    if (!hasFeature('task_export')) {
+      btn.classList.add('d-none');
+      return;
+    }
+    btn.addEventListener('click', function () {
+      fetch("{{ url_for('main.export_tasks') }}")
+        .then(r => {
+          if (!r.ok) throw new Error('Export failed');
+          return r.blob();
+        })
         .then(blob => {
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -398,203 +446,332 @@ document.addEventListener('DOMContentLoaded', function() {
           document.body.appendChild(a);
           a.click();
           a.remove();
+          window.URL.revokeObjectURL(url);
         })
-        .catch(err => console.error("Export failed:", err));
+        .catch(err => console.error('Export error:', err));
     });
-  }
+  })();
 
-  // =========================================================
-  // Inline Timer
-  // =========================================================
-  const inlineOverlay = document.getElementById('inlineTimerOverlay');
-  const countdownDisplay = document.getElementById('countdownDisplay');
-  const inlineTimerForm = document.getElementById('inlineTimerForm');
-  const inlineTaskIdInput = document.getElementById('inlineTaskId');
-  const inlineTimerTitle = document.getElementById('inlineTimerTitle');
-  let countdownInterval;
-
-  // Timer expiration modal
-  let timerExpiredModalHtml = `
-    <div class="modal fade" id="timerExpiredModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-warning">
-          <div class="modal-header bg-warning text-dark">
-            <h5 class="modal-title">Time's Up!</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            Did you finish the task?
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-success" id="timerYesBtn">Yes</button>
-            <button type="button" class="btn btn-secondary" id="timerNoBtn">No</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  document.body.insertAdjacentHTML('beforeend', timerExpiredModalHtml);
-  const timerExpiredModalEl = document.getElementById('timerExpiredModal');
-  const timerExpiredModal = new bootstrap.Modal(timerExpiredModalEl);
-  let currentTaskId = null;
-
-  // Show timer overlay on "Start" button click
-  document.querySelectorAll('.scroll-to-timer').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const taskId = this.dataset.taskId;
-      const taskTitle = this.dataset.taskTitle;
-
-      currentTaskId = taskId;
-      inlineTaskIdInput.value = taskId;
-      inlineTimerTitle.textContent = taskTitle;
-      countdownDisplay.textContent = '00:00';
-      inlineOverlay.classList.remove('d-none');
-
-      // Set task status to "in progress" using AJAX
-      updateTaskStatus(taskId, 'in progress');
-    });
-  });
-
-  // Close timer overlay
-  const closeInlineBtn = document.getElementById('closeInlineTimer');
-  if (closeInlineBtn) {
-    closeInlineBtn.addEventListener('click', () => {
-      clearInterval(countdownInterval);
-      inlineOverlay.classList.add('d-none');
-    });
-  }
-
-  // Handle timer form submission
-  if (inlineTimerForm) {
-    inlineTimerForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      let minutes = parseInt(document.getElementById('inlineTimerMinutes').value);
-      if (!minutes || minutes <= 0) minutes = 1;
-
-      let secondsRemaining = minutes * 60;
-      clearInterval(countdownInterval);
-
-      countdownInterval = setInterval(() => {
-        const m = Math.floor(secondsRemaining / 60);
-        const s = secondsRemaining % 60;
-        countdownDisplay.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-
-        if (secondsRemaining <= 0) {
-          clearInterval(countdownInterval);
-          // Show modal instead of confirm()
-          timerExpiredModal.show();
-        }
-        secondsRemaining--;
-      }, 1000);
-    });
-  }
-
-  // =========================================================
-  // Timer expired modal buttons
-  // =========================================================
-  document.getElementById('timerYesBtn').addEventListener('click', () => {
-    if (!currentTaskId) return;
-    updateTaskStatus(currentTaskId, 'completed');
-    timerExpiredModal.hide();
-    inlineOverlay.classList.add('d-none');
-    location.reload();
-  });
-
-  document.getElementById('timerNoBtn').addEventListener('click', () => {
-    timerExpiredModal.hide();
-    inlineOverlay.classList.add('d-none');
-  });
-
-  // =========================================================
-  // Update task status function
-  // =========================================================
-  function updateTaskStatus(taskId, status) {
-  if (!taskId) return;
-  const statusUrl = `{{ url_for("main.update_status", id=0) }}`.replace('0', taskId);
-  const csrfInput = document.querySelector('input[name="csrf_token"]');
-  const csrfToken = csrfInput ? csrfInput.value : '';
-
-  fetch(statusUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': csrfToken
-    },
-    body: JSON.stringify({ status })
-  })
-  .then(response => {
-    if (!response.ok) throw new Error("Status update failed");
-    // Update badge in the DOM immediately
-    const row = document.querySelector(`.scroll-to-timer[data-task-id='${taskId}']`)?.closest('tr');
-    if (row) {
-      const statusCell = row.querySelector('td:nth-child(4)');
-      if (statusCell) {
-        if (status === 'in progress') {
-          statusCell.innerHTML = '<span class="badge bg-info text-dark">In Progress</span>';
-        } else if (status === 'completed') {
-          statusCell.innerHTML = '<span class="badge bg-success">Completed</span>';
-        } else if (status === 'pending') {
-          statusCell.innerHTML = '<span class="badge bg-secondary">Pending</span>';
-        } else if (status === 'overdue') {
-          statusCell.innerHTML = '<span class="badge bg-danger">Overdue</span>';
-        }
-      }
+  // --------------------------
+  // INLINE TIMER / START / FINISH
+  // --------------------------
+  (function setupInlineTimer() {
+    // If feature disabled, hide start buttons and ensure overlay hidden
+    if (!hasFeature('task_timer')) {
+      document.querySelectorAll('.scroll-to-timer').forEach(b => b.classList.add('d-none'));
+      const overlayEl = document.getElementById('inlineTimerOverlay');
+      if (overlayEl) overlayEl.classList.add('d-none');
+      return;
     }
-  })
-  .catch(err => console.error("Status update failed:", err));
-}
 
-  // =========================================================
-  // Delete task modal handling
-  // =========================================================
-  let deleteTaskId = null;
-  const deleteModal = document.getElementById('deleteTaskModal');
-  const confirmDeleteBtn = document.getElementById('confirmDeleteTaskBtn');
+    const overlay = document.getElementById('inlineTimerOverlay');
+    const countdownDisplay = document.getElementById('countdownDisplay');
+    const inlineForm = document.getElementById('inlineTimerForm');
+    const minutesInput = document.getElementById('inlineTimerMinutes');
+    const taskIdInput = document.getElementById('inlineTaskId');
+    const titleElem = document.getElementById('inlineTimerTitle');
 
-  document.querySelectorAll('.delete-task-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      deleteTaskId = this.dataset.taskId;
+    // create "Task finished" button inside overlay if not present
+    let finishBtn = document.getElementById('finishTaskBtn');
+    if (!finishBtn && overlay) {
+      finishBtn = document.createElement('button');
+      finishBtn.type = 'button';
+      finishBtn.id = 'finishTaskBtn';
+      finishBtn.className = 'btn btn-outline-primary w-100 mt-2';
+      finishBtn.textContent = 'Task finished';
+      const form = overlay.querySelector('#inlineTimerForm');
+      if (form) form.appendChild(finishBtn);
+    }
+
+    let countdownInterval = null;
+    let secondsRemaining = 0;
+
+    // Update the status badge in the task row for immediate UI feedback
+    function updateStatusBadgeOnRow(taskId, status) {
+      if (!taskId) return;
+      const triggerBtn = document.querySelector(`button.scroll-to-timer[data-task-id="${taskId}"]`);
+      if (!triggerBtn) return;
+      const tr = triggerBtn.closest('tr');
+      if (!tr) return;
+      const statusCell = tr.querySelector('td:nth-child(4)');
+      if (!statusCell) return;
+
+      let badgeClasses = 'badge bg-secondary';
+      let badgeText = status;
+      if (status === 'completed') { badgeClasses = 'badge bg-success'; badgeText = 'Completed'; }
+      else if (status === 'in progress') { badgeClasses = 'badge bg-info text-dark'; badgeText = 'In Progress'; }
+      else if (status === 'not started') { badgeClasses = 'badge bg-secondary'; badgeText = 'Not Started'; }
+      else if (status === 'overdue') { badgeClasses = 'badge bg-danger'; badgeText = 'Overdue'; }
+      else { badgeClasses = 'badge bg-secondary'; badgeText = status; }
+
+      statusCell.innerHTML = `<span class="${badgeClasses}">${badgeText}</span>`;
+    }
+
+    // Server update for status; returns a promise
+    function updateTaskStatus(taskId, newStatus) {
+      if (!taskId) return Promise.reject('missing taskId');
+      const urlTemplate = "{{ url_for('main.update_status', id=0) }}";
+      const url = urlTemplate.replace('0', taskId);
+      return postJSON(url, { status: newStatus })
+        .then(resp => {
+          if (!resp.ok) throw new Error('update failed');
+          updateStatusBadgeOnRow(taskId, newStatus);
+          return resp;
+        })
+        .catch(err => {
+          console.error('Status update failed', err);
+          throw err;
+        });
+    }
+
+    // open overlay for a task and set in-progress on server (best-effort)
+    function openOverlayFor(taskId, taskTitle) {
+      if (!overlay) return;
+      taskIdInput.value = taskId;
+      titleElem.textContent = taskTitle || 'Task Timer';
+      countdownDisplay.textContent = '00:00';
+      // reset any existing timer
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      secondsRemaining = 0;
+      overlay.classList.remove('d-none');
+
+      // set 'in progress' immediately (best-effort update)
+      updateTaskStatus(taskId, 'in progress').catch(() => {
+        // ignored; UI already shows overlay
+      });
+    }
+
+    // hook start buttons
+    document.querySelectorAll('.scroll-to-timer').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const tId = this.dataset.taskId;
+        const tTitle = this.dataset.taskTitle;
+        openOverlayFor(tId, tTitle);
+      });
     });
-  });
 
-  if (confirmDeleteBtn) {
-    confirmDeleteBtn.addEventListener('click', function() {
+    // finish button (user marks task finished early)
+    if (finishBtn) {
+      finishBtn.addEventListener('click', function () {
+        const tid = taskIdInput.value;
+        if (!tid) return;
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+        secondsRemaining = 0;
+        updateTaskStatus(tid, 'completed')
+          .finally(() => {
+            if (overlay) overlay.classList.add('d-none');
+          });
+      });
+    }
+
+    // close overlay button
+    const closeInline = document.getElementById('closeInlineTimer');
+    if (closeInline) {
+      closeInline.addEventListener('click', function () {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+        if (overlay) overlay.classList.add('d-none');
+      });
+    }
+
+    // modal that asks Yes/No when timer ends
+    function showTimerEndModal(taskId) {
+      const MID = 'inlineTimerEndModal';
+      let modalEl = document.getElementById(MID);
+      if (!modalEl) {
+        modalEl = document.createElement('div');
+        modalEl.className = 'modal fade';
+        modalEl.id = MID;
+        modalEl.tabIndex = -1;
+        modalEl.innerHTML = `
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-warning">
+              <div class="modal-header bg-warning">
+                <h5 class="modal-title">Time is up</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p class="mb-0">Did you finish the task?</p>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="${MID}-no">No</button>
+                <button type="button" class="btn btn-warning" id="${MID}-yes">Yes</button>
+              </div>
+            </div>
+          </div>`;
+        document.body.appendChild(modalEl);
+      }
+
+      const bsModal = new bootstrap.Modal(modalEl);
+      bsModal.show();
+
+      const yesBtn = modalEl.querySelector(`#${MID}-yes`);
+      const noBtn = modalEl.querySelector(`#${MID}-no`);
+
+      function doYes() {
+        updateTaskStatus(taskId, 'completed').finally(() => bsModal.hide());
+        cleanup();
+      }
+      function doNo() {
+        updateTaskStatus(taskId, 'in progress').finally(() => bsModal.hide());
+        cleanup();
+      }
+      function cleanup() {
+        if (yesBtn) yesBtn.removeEventListener('click', doYes);
+        if (noBtn) noBtn.removeEventListener('click', doNo);
+      }
+
+      if (yesBtn) yesBtn.addEventListener('click', doYes);
+      if (noBtn) noBtn.addEventListener('click', doNo);
+    }
+
+    // start countdown when inline form is submitted
+    if (inlineForm) {
+      inlineForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        let minutes = parseInt(minutesInput.value || '1', 10);
+        if (!minutes || minutes <= 0) minutes = 1;
+        secondsRemaining = minutes * 60;
+
+        clearInterval(countdownInterval);
+        countdownInterval = setInterval(() => {
+          const m = Math.floor(secondsRemaining / 60);
+          const s = secondsRemaining % 60;
+          countdownDisplay.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+          if (secondsRemaining <= 0) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            const tid = taskIdInput.value;
+            if (overlay) overlay.classList.add('d-none');
+            // show yes/no modal
+            showTimerEndModal(tid);
+          }
+          secondsRemaining--;
+        }, 1000);
+      });
+    }
+  })();
+
+  // --------------------------
+  // DELETE TASK modal (red popup)
+  // --------------------------
+  (function setupDeleteModal() {
+    const deleteModalEl = document.getElementById('deleteTaskModal');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteTaskBtn');
+    let deleteTaskId = null;
+
+    // capture which task id to delete when delete button clicked
+    document.querySelectorAll('.delete-task-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        deleteTaskId = this.dataset.taskId;
+      });
+    });
+
+    if (!deleteModalEl || !confirmDeleteBtn) return;
+
+    confirmDeleteBtn.addEventListener('click', function () {
+      if (!deleteTaskId) {
+        // try fallback: find delete button currently triggering the modal
+        const possible = document.querySelector('.delete-task-btn[data-bs-toggle="modal"][data-bs-target="#deleteTaskModal"]');
+        if (possible) deleteTaskId = possible.dataset.taskId;
+      }
       if (!deleteTaskId) return;
-      const deleteUrl = `{{ url_for("main.delete_task", id=0) }}`.replace('0', deleteTaskId);
-      const csrfInput = document.querySelector('input[name="csrf_token"]');
-      const csrfToken = csrfInput ? csrfInput.value : '';
 
-      fetch(deleteUrl, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrfToken }
-      })
-      .then(() => {
-        deleteTaskId = null;
-        const bsModal = bootstrap.Modal.getInstance(deleteModal);
-        if (bsModal) bsModal.hide();
-        location.reload();
-      })
-      .catch(err => console.error("Delete failed:", err));
+      const deleteUrl = "{{ url_for('main.delete_task', id=0) }}".replace('0', deleteTaskId);
+      // prefer POST JSON, but fallback to plain fetch if necessary
+      postJSON(deleteUrl, {})
+        .then(resp => {
+          if (!resp.ok) {
+            return fetch(deleteUrl, { method: 'POST', headers: CSRF_TOKEN ? { 'X-CSRFToken': CSRF_TOKEN } : {} });
+          }
+          return resp;
+        })
+        .then(() => {
+          const bs = bootstrap.Modal.getInstance(deleteModalEl);
+          if (bs) bs.hide();
+          window.location.reload();
+        })
+        .catch(err => {
+          console.error('Delete failed', err);
+          window.location.reload();
+        });
     });
-  }
+  })();
 
-  // =========================================================
-  // Optional: filter dropdown change handling
-  // =========================================================
-  const statusFilter = document.getElementById('clientFilterStatus');
-  const priorityFilter = document.getElementById('clientFilterPriority');
-  [statusFilter, priorityFilter].forEach(el => {
-    if (el) {
-      el.addEventListener('change', () => {
+  // --------------------------
+  // FILTER DROPDOWNS
+  // --------------------------
+  (function setupFilters() {
+    const statusFilter = document.getElementById('clientFilterStatus');
+    const priorityFilter = document.getElementById('clientFilterPriority');
+
+    if (statusFilter) {
+      statusFilter.addEventListener('change', function () {
         const params = new URLSearchParams(window.location.search);
-        if (statusFilter) params.set('status', statusFilter.value);
-        if (priorityFilter) params.set('priority', priorityFilter.value);
+        if (this.value) params.set('status', this.value); else params.delete('status');
         window.location.search = params.toString();
       });
     }
-  });
+    if (priorityFilter) {
+      priorityFilter.addEventListener('change', function () {
+        const params = new URLSearchParams(window.location.search);
+        if (this.value) params.set('priority', this.value); else params.delete('priority');
+        window.location.search = params.toString();
+      });
+    }
+  })();
 
-});
+  // --------------------------
+  // PROGRESS BARS / GAMIFICATION
+  // --------------------------
+  (function setupProgressBars() {
+    if (!hasFeature('gamification')) {
+      // hide gamification card if present
+      document.querySelectorAll('.card').forEach(card => {
+        const header = card.querySelector('.card-header');
+        if (header && header.textContent && header.textContent.trim().toLowerCase().includes('gamification')) {
+          card.classList.add('d-none');
+        }
+      });
+      return;
+    }
+    document.querySelectorAll('.progress-bar[data-points]').forEach(bar => {
+      const value = parseInt(bar.dataset.points || '0', 10);
+      bar.style.width = Math.max(0, Math.min(100, value)) + '%';
+      bar.setAttribute('aria-valuenow', String(Math.max(0, Math.min(100, value))));
+    });
+  })();
+
+  // --------------------------
+  // HIDE SERVER-RENDERED BLOCKS IF DISABLED (defensive)
+  // --------------------------
+  (function defensiveHide() {
+    if (!hasFeature('task_timer')) {
+      const overlay = document.getElementById('inlineTimerOverlay');
+      if (overlay) overlay.classList.add('d-none');
+      document.querySelectorAll('.scroll-to-timer').forEach(b => b.classList.add('d-none'));
+    }
+    if (!hasFeature('task_export')) {
+      document.querySelectorAll('#exportTasksBtn').forEach(b => b.classList.add('d-none'));
+    }
+    if (!hasFeature('tips')) {
+      document.querySelectorAll('.card').forEach(card => {
+        const header = card.querySelector('.card-header');
+        if (header && /daily tips/i.test(header.textContent || '')) card.classList.add('d-none');
+      });
+    }
+    if (!hasFeature('reminders')) {
+      document.querySelectorAll('.card').forEach(card => {
+        const header = card.querySelector('.card-header');
+        if (header && /upcoming reminders/i.test(header.textContent || '')) card.classList.add('d-none');
+      });
+    }
+  })();
+
+}); // DOMContentLoaded
 </script>
 {% endblock %}
 

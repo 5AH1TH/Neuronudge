@@ -51,9 +51,20 @@
             <a href="{{ url_for('main.task_list') }}" class="btn btn-lg btn-outline-secondary" aria-label="View all tasks">
                 <i class="fa-solid fa-list me-2"></i> All Tasks
             </a>
-            <a href="{{ url_for('main.onboarding') }}" class="btn btn-lg btn-outline-info" aria-label="Update preferences">
-                <i class="fa-solid fa-gear me-2"></i> Preferences
+            <a href="{{ url_for('main.onboarding') }}" class="btn btn-outline-info">
+                <i class="bi bi-gear"></i> Preferences
             </a>
+            <a href="{{ url_for('main.dashboard_graphs') }}" class="btn btn-outline-primary ms-2">
+                <i class="bi bi-bar-chart"></i> Graphs
+            </a>
+
+
+            {% if current_user.profile != 'ADHD' %}
+            <a href="{{ url_for('main.dashboard_graphs') }}" class="btn btn-outline-success">
+                <i class="bi bi-bar-chart-line"></i> Graphs
+            </a>
+            {% endif %}
+
         </div>
 
         <!-- Task Overview Table -->

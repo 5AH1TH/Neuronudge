@@ -332,7 +332,15 @@ def dashboard_customized():
         task_form=task_form
     )
 
-
+@main.route("/dashboard/graphs")
+@login_required
+def dashboard_graphs():
+    task_stats = {
+        'completed': Task.query.filter_by(user_id=current_user.id, status='completed').count(),
+        'pending': Task.query.filter_by(user_id=current_user.id, status='pending').count(),
+        'overdue': Task.query.filter_by(user_id=current_user.id, status='overdue').count(),
+    }
+    return render_template("dashboard_graphs.html", task_stats=task_stats)
 
 @main.route('/onboarding', methods=['GET', 'POST'])
 @login_required
