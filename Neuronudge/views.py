@@ -143,6 +143,14 @@ def dashboard():
             )
             for t in task_feed
         ]
+    now = datetime.utcnow()
+    for task in tasks:
+        if task.due_date and task.due_date < now and not task.completed:
+            task.status = "Late"
+        elif task.completed:
+            task.status = "Completed"
+        else:
+            task.status = "Pending"
     
     return render_template(
         dashboard_template,

@@ -101,6 +101,7 @@
           <div class="d-flex align-items-center gap-2">
             <select id="clientFilterStatus" class="form-select form-select-sm" style="width:auto">
               <option value="">All</option>
+              <option value="late" {% if filter_status == 'late' %}selected{% endif %}>Late</option>
               <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>Pending</option>
               <option value="completed" {% if filter_status == 'completed' %}selected{% endif %}>Completed</option>
             </select>

@@ -90,10 +90,12 @@
             {% endif %}
           </td>
           <td>
-            {% if task.completed %}
-              <span class="badge bg-success">Completed</span>
+            {% if task.status == "Late" %}
+                <span class="badge bg-danger">Late</span>
+            {% elif task.status == "Completed" %}
+                <span class="badge bg-success">Completed</span>
             {% else %}
-              <span class="badge bg-info text-dark">Pending</span>
+                <span class="badge bg-warning text-dark">Pending</span>
             {% endif %}
           </td>
           <td class="text-center">
