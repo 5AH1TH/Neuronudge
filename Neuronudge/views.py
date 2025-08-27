@@ -332,14 +332,24 @@ def dashboard_customized():
         task_form=task_form
     )
 
-@main.route("/dashboard/graphs")
+@main.route('/dashboard/graphs')
 @login_required
 def dashboard_graphs():
+    completed = Task.query.filter_by(user_id=current_user.id, completed=True).count()
+    pending   = Task.query.filter_by(user_id=current_user.id, completed=False).count()
+    overdue   = Task.query.filter(
+        Task.user_id == current_user.id,
+        Task.completed == False,
+        Task.due_date != None,
+        Task.due_date < datetime.utcnow()
+    ).count()
+
     task_stats = {
-        'completed': Task.query.filter_by(user_id=current_user.id, status='completed').count(),
-        'pending': Task.query.filter_by(user_id=current_user.id, status='pending').count(),
-        'overdue': Task.query.filter_by(user_id=current_user.id, status='overdue').count(),
+        "completed": completed,
+        "pending": pending,
+        "overdue": overdue
     }
+
     return render_template("dashboard_graphs.html", task_stats=task_stats)
 
 @main.route('/onboarding', methods=['GET', 'POST'])

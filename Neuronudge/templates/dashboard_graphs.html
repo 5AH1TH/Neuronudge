@@ -1,52 +1,102 @@
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-
-    const ctx = document.getElementById('tasksChart').getContext('2d');
-
-    // Safely pass task stats as JSON string, then parse in JS
-    const taskStats = JSON.parse('{{ task_stats | default({"completed":0,"pending":0,"overdue":0}) | tojson | safe }}');
-
-    const completed = Number(taskStats.completed || 0);
-    const pending   = Number(taskStats.pending   || 0);
-    const overdue   = Number(taskStats.overdue   || 0);
-
-    const data = {
-        labels: ['Completed', 'Pending', 'Overdue'],
-        datasets: [{
-            label: 'Number of Tasks',
-            data: [completed, pending, overdue],
-            backgroundColor: [
-                'rgba(40, 167, 69, 0.7)',
-                'rgba(255, 193, 7, 0.7)',
-                'rgba(220, 53, 69, 0.7)'
-            ],
-            borderColor: [
-                'rgba(40, 167, 69, 1)',
-                'rgba(255, 193, 7, 1)',
-                'rgba(220, 53, 69, 1)'
-            ],
-            borderWidth: 1
-        }]
-    };
-
-    const config = {
-        type: 'bar',
-        data: data,
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                title: { display: true, text: 'Tasks Overview' }
-            },
-            scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 } }
-            }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Task Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-    };
 
-    new Chart(ctx, config);
-});
-</script>
-{% endblock %}
+        h1 {
+            margin: 20px;
+            color: #333;
+        }
+
+        .chart-container {
+            width: 600px;
+            max-width: 90%;
+            margin: 20px 0;
+            padding: 20px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Task Statistics Dashboard</h1>
+
+    <!-- JSON data safely embedded -->
+    <script id="taskStatsJSON" type="application/json">
+        {{ task_stats | default({'completed':0,'pending':0,'overdue':0}) | tojson }}
+    </script>
+
+    <div class="chart-container">
+        <h2>Task Distribution</h2>
+        <canvas id="taskPieChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h2>Task Status Comparison</h2>
+        <canvas id="taskBarChart"></canvas>
+    </div>
+
+    <script>
+        // Parse the safely embedded JSON
+        const taskStats = JSON.parse(
+            document.getElementById("taskStatsJSON").textContent
+        );
+
+        const completed = taskStats.completed || 0;
+        const pending   = taskStats.pending   || 0;
+        const overdue   = taskStats.overdue   || 0;
+
+        // PIE CHART
+        const ctxPie = document.getElementById("taskPieChart").getContext("2d");
+        new Chart(ctxPie, {
+            type: "pie",
+            data: {
+                labels: ["Completed", "Pending", "Overdue"],
+                datasets: [{
+                    data: [completed, pending, overdue],
+                    backgroundColor: ["#28a745", "#ffc107", "#dc3545"]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: "bottom" }
+                }
+            }
+        });
+
+        // BAR CHART
+        const ctxBar = document.getElementById("taskBarChart").getContext("2d");
+        new Chart(ctxBar, {
+            type: "bar",
+            data: {
+                labels: ["Completed", "Pending", "Overdue"],
+                datasets: [{
+                    label: "Number of Tasks",
+                    data: [completed, pending, overdue],
+                    backgroundColor: ["#28a745", "#ffc107", "#dc3545"]
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
