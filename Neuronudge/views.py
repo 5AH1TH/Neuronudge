@@ -650,6 +650,15 @@ def all_tasks():
     page = request.args.get('page', 1, type=int)
     per_page = 10
 
+    tasks = Task.query.filter_by(user_id=current_user.id).all()
+
+    task_counts = {
+        'all': len(tasks),
+        'completed': len([t for t in tasks if t.completed]),
+        'pending': len([t for t in tasks if not t.completed]),
+        'overdue': len([t for t in tasks if t.due_date and t.due_date < datetime.utcnow() and not t.completed])
+    }
+    
     # Optional filters
     filter_status = request.args.get('status', 'all')
     filter_priority = request.args.get('priority', 'all')
@@ -680,12 +689,13 @@ def all_tasks():
     paginated_tasks = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
 
     return render_template(
-        "all_tasks.html",
+        "task_list.html",
         tasks=paginated_tasks.items,
         paginated_tasks=paginated_tasks,
         filter_status=filter_status,
         filter_priority=filter_priority,
-        search_term=search_term
+        search_term=search_term,
+        task_counts=task_counts
     )
 
 
