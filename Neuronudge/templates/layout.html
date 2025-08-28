@@ -48,14 +48,13 @@
         z-index: 1080;
         min-width: 320px;
         max-width: 350px;
-    .flash-message {
-        -webkit-user-select: none;  /* Safari 3+, iOS Safari 3.2+ */
-        -moz-user-select: none;     /* Firefox */
-        -ms-user-select: none;      /* Internet Explorer/Edge */
-        user-select: none;          /* Standard */
-    }
-
         pointer-events: auto;
+    }
+    .flash-message {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
     }
     .flash-message .alert {
         box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -95,10 +94,16 @@
         color: #eee !important;
         border-color: #555 !important;
     }
-</style>
 
-    {% block head_scripts %}
-    {% endblock %}
+    /* Fix for filter buttons hover darkening ONLY */
+    a.btn.filter-btn:hover,
+    button.btn.filter-btn:hover {
+        filter: brightness(75%) !important;
+        transition: filter 0.2s ease-in-out !important;
+    }
+    </style>
+
+    {% block head_scripts %}{% endblock %}
 </head>
 <body class="d-flex flex-column h-100" role="document" aria-live="polite" aria-busy="false" aria-label="Neuronudge main document">
 
@@ -281,7 +286,6 @@
     });
 </script>
 
-{% block body_scripts %}
-{% endblock %}
+{% block body_scripts %}{% endblock %}
 </body>
 </html>

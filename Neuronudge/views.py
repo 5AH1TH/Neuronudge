@@ -40,6 +40,7 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
 
+
 @main.route('/dashboard')
 @login_required
 def dashboard():
@@ -106,7 +107,7 @@ def dashboard():
     elif profile_type == "custom":
         dashboard_template = "dashboard_customized.html"
     else:
-        dashboard_template = "dashboard.html"
+        dashboard_template = "dashboard_general.html"
 
     
     # ============================
@@ -340,6 +341,7 @@ def dashboard_customized():
         task_form=task_form
     )
 
+
 @main.route('/dashboard/graphs')
 @login_required
 def dashboard_graphs():
@@ -359,6 +361,7 @@ def dashboard_graphs():
     }
 
     return render_template("dashboard_graphs.html", task_stats=task_stats)
+
 
 @main.route('/onboarding', methods=['GET', 'POST'])
 @login_required
@@ -390,6 +393,7 @@ def onboarding():
         form.notifications_enabled.data = existing.notifications_enabled
 
     return render_template('onboarding.html', form=form)
+
 
 @main.route('/task/new', methods=['GET', 'POST'])
 @login_required
@@ -513,6 +517,7 @@ def export_tasks():
     log_action(current_user.id, "Exported tasks as JSON")
     return jsonify({'tasks': task_data})
 
+
 @main.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
@@ -536,6 +541,7 @@ def profile():
             return redirect(url_for('main.profile'))
     return render_template('profile.html', form=form, change_password_form=change_password_form)
 
+
 @main.route('/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -552,6 +558,7 @@ def change_password():
 
     return render_template('change_password.html', form=form)
 
+
 @main.route('/tasks/complete/<int:id>', methods=['POST'])
 @login_required
 def toggle_task_completion(id):
@@ -563,6 +570,7 @@ def toggle_task_completion(id):
     log_action(current_user.id, f"Toggled task completion for '{task.title}' to {task.completed}")
     return jsonify({"success": True, "completed": task.completed})
 
+
 @main.route('/tasks/reminder/<int:id>', methods=['POST'])
 @login_required
 def toggle_task_reminder(id):
@@ -573,6 +581,7 @@ def toggle_task_reminder(id):
     db.session.commit()
     log_action(current_user.id, f"Toggled reminder for task '{task.title}' to {task.reminder_set}")
     return jsonify({"success": True, "reminder_set": task.reminder_set})
+
 
 # Bulk task operations
 @main.route('/tasks/bulk-complete', methods=['POST'])
@@ -589,6 +598,7 @@ def bulk_complete():
     flash(f"Marked {updated} tasks as completed.", category='success')
     log_action(current_user.id, f"Bulk marked {updated} tasks as completed")
     return redirect(url_for('main.dashboard'))
+
 
 @main.route('/tasks/bulk-delete', methods=['POST'])
 @login_required
@@ -629,12 +639,60 @@ def task_search():
 
     return render_template('task_search.html', results=results)
 
+
 @main.route('/tasks')
 @login_required
-def task_list():
-    page = request.args.get('page', 1, type=int)
-    tasks = Task.query.filter_by(user_id=current_user.id).paginate(page=page, per_page=10)
-    return render_template('task_list.html', tasks=tasks)
+def all_tasks():
+    filter_type = request.args.get('filter', 'all')
+    now = datetime.now()
+
+    # Get all tasks for the current user
+    user_tasks = Task.query.filter_by(user_id=current_user.id).all()
+
+    # Assign statuses (still useful for counts & overdue list)
+    for task in user_tasks:
+        if task.completed:
+            task.status = 'completed'
+        elif task.due_date and task.due_date < now:
+            task.status = 'overdue'
+        else:
+            task.status = 'pending'
+
+    # Filter tasks for the view
+    if filter_type == 'pending':
+        # ⬅ include overdue in pending view
+        tasks = [t for t in user_tasks if t.status in ('pending', 'overdue')]
+        header = "Pending Tasks"
+    elif filter_type == 'completed':
+        tasks = [t for t in user_tasks if t.status == 'completed']
+        header = "Completed Tasks"
+    elif filter_type == 'overdue':
+        tasks = [t for t in user_tasks if t.status == 'overdue']
+        header = "Overdue Tasks"
+    else:
+        tasks = user_tasks
+        header = "Your Tasks"
+
+    # Count tasks normally (so buttons show correct numbers)
+    counts = {"all": 0, "pending": 0, "completed": 0, "overdue": 0}
+    for t in user_tasks:
+        counts["all"] += 1
+        if t.status == "pending":
+            counts["pending"] += 1
+        elif t.status == "completed":
+            counts["completed"] += 1
+        elif t.status == "overdue":
+            counts["overdue"] += 1
+
+    return render_template(
+        "task_list.html",
+        tasks=tasks,
+        filter=filter_type,
+        header=header,
+        task_counts=counts,
+        current_time=now
+    )
+
 
 @main.route('/upload_avatar', methods=['POST'])
 @login_required

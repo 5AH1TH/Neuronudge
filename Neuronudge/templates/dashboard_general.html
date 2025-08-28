@@ -10,36 +10,47 @@
         <div class="row g-4 my-4">
             <!-- Summary Cards -->
             <div class="col-md-3 col-sm-6" role="region" aria-label="Tasks summary">
-                <div class="card shadow-sm border-primary h-100">
-                    <div class="card-body text-center">
-                        <h2 class="card-title display-5">{{ task_counts.total }}</h2>
-                        <p class="card-text fs-5">Total Tasks</p>
+                <a href="{{ url_for('main.all_tasks', filter='all') }}" class="text-decoration-none">
+                    <div class="card shadow-sm border-primary h-100 summary-card">
+                        <div class="card-body text-center">
+                            <h2 class="card-title display-5">{{ task_counts.total }}</h2>
+                            <p class="card-text fs-5">Total Tasks</p>
+                        </div>
                     </div>
-                </div>
+                </a>
             </div>
+
             <div class="col-md-3 col-sm-6" role="region" aria-label="Pending tasks summary">
-                <div class="card shadow-sm border-warning h-100">
-                    <div class="card-body text-center">
-                        <h2 class="card-title display-5">{{ task_counts.pending }}</h2>
-                        <p class="card-text fs-5">Pending Tasks</p>
+                <a href="{{ url_for('main.all_tasks', filter='pending') }}" class="text-decoration-none">
+                    <div class="card shadow-sm border-warning h-100 summary-card">
+                        <div class="card-body text-center">
+                            <h2 class="card-title display-5">{{ task_counts.pending }}</h2>
+                            <p class="card-text fs-5">Pending Tasks</p>
+                        </div>
                     </div>
-                </div>
+                </a>
             </div>
+
             <div class="col-md-3 col-sm-6" role="region" aria-label="Completed tasks summary">
-                <div class="card shadow-sm border-success h-100">
-                    <div class="card-body text-center">
-                        <h2 class="card-title display-5">{{ task_counts.completed }}</h2>
-                        <p class="card-text fs-5">Completed Tasks</p>
+                <a href="{{ url_for('main.all_tasks', filter='completed') }}" class="text-decoration-none">
+                    <div class="card shadow-sm border-success h-100 summary-card">
+                        <div class="card-body text-center">
+                            <h2 class="card-title display-5">{{ task_counts.completed }}</h2>
+                            <p class="card-text fs-5">Completed Tasks</p>
+                        </div>
                     </div>
-                </div>
+                </a>
             </div>
+
             <div class="col-md-3 col-sm-6" role="region" aria-label="Overdue tasks summary">
-                <div class="card shadow-sm border-danger h-100">
-                    <div class="card-body text-center">
-                        <h2 class="card-title display-5">{{ task_counts.overdue }}</h2>
-                        <p class="card-text fs-5">Overdue Tasks</p>
+                <a href="{{ url_for('main.all_tasks', filter='overdue') }}" class="text-decoration-none">
+                    <div class="card shadow-sm border-danger h-100 summary-card">
+                        <div class="card-body text-center">
+                            <h2 class="card-title display-5">{{ task_counts.overdue }}</h2>
+                            <p class="card-text fs-5">Overdue Tasks</p>
+                        </div>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
 
@@ -49,7 +60,7 @@
                 <i class="fa-solid fa-plus me-2"></i> New Task
             </a>
 
-            <a href="{{ url_for('main.task_list') }}" class="btn btn-lg btn-outline-secondary" aria-label="View all tasks">
+            <a href="{{ url_for('main.all_tasks') }}" class="btn btn-lg btn-outline-secondary" aria-label="View all tasks">
                 <i class="fa-solid fa-list me-2"></i> All Tasks
             </a>
 

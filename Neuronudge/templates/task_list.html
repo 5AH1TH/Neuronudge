@@ -1,14 +1,46 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<section aria-labelledby="taskListHeading" class="my-5">
+<section aria-labelledby="taskListHeading" class="my-4">
     <div class="container">
-        <h1 id="taskListHeading" class="mb-4 display-4 text-primary">Your Tasks</h1>
+        <!-- Filter Buttons -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <a href="{{ url_for('main.all_tasks', filter='all') }}"
+                    class="btn btn-outline-primary filter-btn {% if filter=='all' %}active{% endif %}">
+                    All Tasks ({{ task_counts['all'] }})
+                </a>
+                <a href="{{ url_for('main.all_tasks', filter='pending') }}"
+                    class="btn btn-outline-info filter-btn {% if filter=='pending' %}active{% endif %}">
+                    Pending Tasks ({{ task_counts['pending'] }})
+                </a>
+                <a href="{{ url_for('main.all_tasks', filter='completed') }}"
+                    class="btn btn-outline-success filter-btn {% if filter=='completed' %}active{% endif %}">
+                    Completed Tasks ({{ task_counts['completed'] }})
+                </a>
+                <a href="{{ url_for('main.all_tasks', filter='overdue') }}"
+                    class="btn btn-outline-danger filter-btn {% if filter=='overdue' %}active{% endif %}">
+                    Overdue Tasks ({{ task_counts['overdue'] }})
+                </a>
+
+            </div>
+            <div>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+            </div>
+        </div>
+
+        {% set heading = {
+            'all': 'All Tasks',
+            'pending': 'Pending Tasks',
+            'completed': 'Completed Tasks',
+            'overdue': 'Overdue Tasks'
+        } %}
+        <h1 id="taskListHeading" class="mb-4 display-4 text-primary">{{ heading.get(filter, 'Your Tasks') }}</h1>
 
         {% if tasks %}
         <div class="table-responsive shadow-sm rounded border">
             <table class="table table-hover align-middle mb-0" aria-describedby="taskListDesc">
-                <caption id="taskListDesc">List of all your tasks with details and actions.</caption>
+                <caption id="taskListDesc">List of your tasks with details and actions.</caption>
                 <thead class="table-light">
                     <tr>
                         <th scope="col">Title</th>
@@ -24,7 +56,6 @@
                         <td>{{ task.title }}</td>
                         <td>{{ task.due_date.strftime('%b %d, %Y') if task.due_date else 'No due date' }}</td>
                         <td>
-                            {# normalize priority to string lower-case, handles both numeric (1,2,3) and string values #}
                             {% set ps = (task.priority ~ '')|lower %}
                             {% if ps in ['1', 'high'] %}
                                 <span class="badge bg-danger">High</span>
@@ -37,8 +68,10 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if task.completed %}
+                            {% if task.status == 'completed' %}
                                 <span class="badge bg-success">Completed</span>
+                            {% elif task.status == 'overdue' %}
+                                <span class="badge bg-danger">Overdue</span>
                             {% else %}
                                 <span class="badge bg-info text-dark">Pending</span>
                             {% endif %}
@@ -57,30 +90,29 @@
             </table>
         </div>
         {% else %}
-        <p class="text-muted text-center fs-5">You have no tasks yet. <a href="{{ url_for('main.create_task') }}">Create your first task now.</a></p>
+        <p class="text-muted text-center fs-5">
+            {% if filter == 'all' %}
+                You have no tasks yet. <a href="{{ url_for('main.create_task') }}">Create your first task now!</a>
+            {% elif filter == 'completed' %}
+                You haven't completed any tasks yet. Keep going! 💪
+            {% elif filter == 'pending' %}
+                No pending tasks at the moment. Great job! 🎉
+            {% elif filter == 'overdue' %}
+                You have no overdue tasks. Awesome work staying on schedule! ✅
+            {% else %}
+                No tasks found. <a href="{{ url_for('main.create_task') }}">Add a new task</a>
+            {% endif %}
+        </p>
         {% endif %}
     </div>
 </section>
 
-<!-- Delete Confirmation Modal (same as dashboard) -->
-<div
-    class="modal fade"
-    id="deleteTaskModal"
-    tabindex="-1"
-    aria-labelledby="deleteTaskModalLabel"
-    aria-hidden="true"
-    role="dialog"
->
+<div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-labelledby="deleteTaskModalLabel" aria-hidden="true" role="dialog">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content border-danger">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title" id="deleteTaskModalLabel">Confirm Task Deletion</h5>
-                <button
-                    type="button"
-                    class="btn-close btn-close-white"
-                    data-bs-dismiss="modal"
-                    aria-label="Close modal"
-                ></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close modal"></button>
             </div>
             <div class="modal-body">
                 Are you sure you want to delete this task? This action cannot be undone.
@@ -95,12 +127,10 @@
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block body_scripts %}
 <script>
-    // Delete task modal logic
     document.querySelectorAll('.btn-delete-task').forEach(button => {
         button.addEventListener('click', () => {
             const taskId = button.getAttribute('data-task-id');
