@@ -20,12 +20,58 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 
     <style>
+    /* ===============================
+       Override filter buttons hover
+       =============================== */
+    a.btn.filter-btn,
+    button.btn.filter-btn {
+        transition: all 0.2s ease-in-out;
+    }
+
+    /* Primary hover */
+    a.btn-outline-primary.filter-btn:hover { 
+        background-color: #0d6efd !important; 
+        border-color: #0d6efd !important; 
+        color: #fff !important; 
+    }
+    /* Info hover */
+    a.btn-outline-info.filter-btn:hover { 
+        background-color: #0dcaf0 !important; 
+        border-color: #0dcaf0 !important; 
+        color: #000 !important; 
+    }
+    /* Success hover */
+    a.btn-outline-success.filter-btn:hover { 
+        background-color: #198754 !important; 
+        border-color: #198754 !important; 
+        color: #fff !important; 
+    }
+    /* Danger hover */
+    a.btn-outline-danger.filter-btn:hover { 
+        background-color: #dc3545 !important; 
+        border-color: #dc3545 !important; 
+        color: #fff !important; 
+    }
+    /* Warning hover */
+    a.btn-outline-warning.filter-btn:hover { 
+        background-color: #ffc107 !important; 
+        border-color: #ffc107 !important; 
+        color: #000 !important; 
+    }
+    /* Secondary hover */
+    a.btn-outline-secondary.filter-btn:hover { 
+        background-color: #6c757d !important; 
+        border-color: #6c757d !important; 
+        color: #fff !important; 
+    }
+
     body {
         padding-top: 70px;
         background-color: var(--bs-light-bg, #f8f9fa);
         min-height: 100vh;
         display: flex;
         flex-direction: column;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
         text-size-adjust: 100%;
     }
     .navbar-brand {
@@ -49,12 +95,6 @@
         min-width: 320px;
         max-width: 350px;
         pointer-events: auto;
-    }
-    .flash-message {
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
     }
     .flash-message .alert {
         box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -93,13 +133,6 @@
         background-color: #333 !important;
         color: #eee !important;
         border-color: #555 !important;
-    }
-
-    /* Fix for filter buttons hover darkening ONLY */
-    a.btn.filter-btn:hover,
-    button.btn.filter-btn:hover {
-        filter: brightness(75%) !important;
-        transition: filter 0.2s ease-in-out !important;
     }
     </style>
 

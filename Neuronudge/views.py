@@ -643,55 +643,57 @@ def task_search():
 @main.route('/tasks')
 @login_required
 def all_tasks():
-    filter_type = request.args.get('filter', 'all')
-    now = datetime.now()
+    """
+    Route for 'Tasks' page, used in ADHD, Dyslexia, and general dashboards.
+    Displays all tasks for the current user, paginated.
+    """
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
 
-    # Get all tasks for the current user
-    user_tasks = Task.query.filter_by(user_id=current_user.id).all()
+    # Optional filters
+    filter_status = request.args.get('status', 'all')
+    filter_priority = request.args.get('priority', 'all')
+    search_term = request.args.get('search', '').strip()
 
-    # Assign statuses (still useful for counts & overdue list)
-    for task in user_tasks:
-        if task.completed:
-            task.status = 'completed'
-        elif task.due_date and task.due_date < now:
-            task.status = 'overdue'
-        else:
-            task.status = 'pending'
+    query = Task.query.filter_by(user_id=current_user.id)
 
-    # Filter tasks for the view
-    if filter_type == 'pending':
-        # ⬅ include overdue in pending view
-        tasks = [t for t in user_tasks if t.status in ('pending', 'overdue')]
-        header = "Pending Tasks"
-    elif filter_type == 'completed':
-        tasks = [t for t in user_tasks if t.status == 'completed']
-        header = "Completed Tasks"
-    elif filter_type == 'overdue':
-        tasks = [t for t in user_tasks if t.status == 'overdue']
-        header = "Overdue Tasks"
-    else:
-        tasks = user_tasks
-        header = "Your Tasks"
+    if filter_status == 'completed':
+        query = query.filter_by(completed=True)
+    elif filter_status == 'pending':
+        query = query.filter_by(completed=False)
 
-    # Count tasks normally (so buttons show correct numbers)
-    counts = {"all": 0, "pending": 0, "completed": 0, "overdue": 0}
-    for t in user_tasks:
-        counts["all"] += 1
-        if t.status == "pending":
-            counts["pending"] += 1
-        elif t.status == "completed":
-            counts["completed"] += 1
-        elif t.status == "overdue":
-            counts["overdue"] += 1
+    if filter_priority in ['1', '2', '3']:
+        query = query.filter_by(priority=int(filter_priority))
+
+    if search_term:
+        try:
+            query = query.filter(Task.title.ilike(f"%{search_term}%"))
+        except Exception:
+            query = query.filter(Task.title.like(f"%{search_term}%"))
+
+    # Ordering
+    try:
+        ordered_query = query.order_by(Task.priority.asc(), Task.due_date.asc().nulls_last())
+    except Exception:
+        ordered_query = query.order_by(Task.priority.asc(), Task.due_date.asc())
+
+    paginated_tasks = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
 
     return render_template(
-        "task_list.html",
-        tasks=tasks,
-        filter=filter_type,
-        header=header,
-        task_counts=counts,
-        current_time=now
+        "all_tasks.html",
+        tasks=paginated_tasks.items,
+        paginated_tasks=paginated_tasks,
+        filter_status=filter_status,
+        filter_priority=filter_priority,
+        search_term=search_term
     )
+
+
+@main.route('/tasks/list')
+@login_required
+def task_list():
+    # simply redirect to all_tasks
+    return redirect(url_for('main.all_tasks'))
 
 
 @main.route('/upload_avatar', methods=['POST'])

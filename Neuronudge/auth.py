@@ -1,5 +1,5 @@
 # Neuronudge/auth.py
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from .forms import LoginForm, RegisterForm
 from .models import User
 from . import db
@@ -13,7 +13,6 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
-        # use the model's check_password helper
         if user and user.check_password(form.password.data):
             login_user(user)
             flash("Login successful!", category='success')
@@ -22,16 +21,16 @@ def login():
             flash("Invalid credentials.", category='error')
     return render_template('login.html', form=form)
 
+
 @auth.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegisterForm()
 
-    # debugging helpful prints (remove later if you want)
     if request.method == 'POST':
-        print("✅ POST request received.")
-        print("Form validation:", form.validate_on_submit())
-        print("Form errors:", form.errors)
-        print("Request.form:", dict(request.form))
+        current_app.logger.info("✅ POST request received.")
+        current_app.logger.info("Form validation: %s", form.validate_on_submit())
+        current_app.logger.info("Form errors: %s", form.errors)
+        current_app.logger.info("Request.form: %s", dict(request.form))
 
     if form.validate_on_submit():
         existing_user = User.query.filter_by(email=form.email.data).first()
@@ -47,7 +46,7 @@ def register():
                 profile_type=form.profile_type.data,
                 dashboard_features=form.get_selected_features(),
 
-                # ✅ Save feature selections
+                # Save feature selections
                 feature_task_timer=form.feature_task_timer.data,
                 feature_task_stats=form.feature_task_stats.data,
                 feature_focus_mode=form.feature_focus_mode.data,
@@ -58,13 +57,15 @@ def register():
             )
             db.session.add(new_user)
             db.session.commit()
+
+            # Automatically log in the user
             login_user(new_user)
             flash("Registration successful!", category='success')
 
-            # redirect to customized dashboard
-            return redirect(url_for('main.dashboard_customized'))
+            # Redirect to main dashboard (template chosen dynamically by profile)
+            return redirect(url_for('main.dashboard'))
     else:
-        # If POST and there are errors, flash them so user sees why validation failed
+        # Flash validation errors
         if request.method == 'POST' and form.errors:
             for field, errors in form.errors.items():
                 for err in errors:
@@ -72,11 +73,14 @@ def register():
 
     return render_template('register.html', form=form)
 
+
 @auth.route('/logout')
 @login_required
 def logout():
     logout_user()
+    flash("You have been logged out.", category='info')
     return redirect(url_for('auth.login'))
+
 
 @auth.route('/password_reset', methods=['GET', 'POST'])
 def password_reset():
