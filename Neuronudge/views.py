@@ -10,6 +10,7 @@ import logging
 import pytz
 from datetime import timedelta
 import os
+import json
 
 PACIFIC = pytz.timezone('US/Pacific')
 
@@ -183,6 +184,60 @@ def dashboard_customized():
     # --- Forms ---
     task_form = TaskForm()
 
+    # Import json locally so callers that only change this function don't need to modify top imports
+    import json
+
+    # --- Load user preferences safely ---
+    preferences = {}
+    try:
+        # current_user.preferences is normally a relationship (OnboardingPreferences) object.
+        prefs_obj = getattr(current_user, 'preferences', None)
+        if prefs_obj:
+            # Map the OnboardingPreferences object into a dictionary of expected preference keys.
+            preferences = {
+                "focus_time": getattr(prefs_obj, 'focus_time', 25),
+                "break_time": getattr(prefs_obj, 'break_time', 5),
+                "long_break_time": getattr(prefs_obj, 'long_break_time', 15),
+                "session_goal": getattr(prefs_obj, 'session_goal', 4),
+                "notifications_enabled": bool(getattr(prefs_obj, 'notifications_enabled', True)),
+                "dark_mode_enabled": bool(getattr(prefs_obj, 'dark_mode_enabled', False)),
+                "theme_color": getattr(prefs_obj, 'theme_color', 'blue'),
+                "font_size": getattr(prefs_obj, 'font_size', 'medium'),
+                "sound_enabled": bool(getattr(prefs_obj, 'sound_enabled', True))
+            }
+        else:
+            # Fallback: If preferences were stored as JSON string on the user (legacy), attempt to parse.
+            raw_pref = getattr(current_user, 'preferences', None)
+            if isinstance(raw_pref, str) and raw_pref.strip():
+                try:
+                    parsed = json.loads(raw_pref)
+                    if isinstance(parsed, dict):
+                        preferences = parsed
+                except Exception:
+                    preferences = {}
+    except Exception as e:
+        # Keep behaviour robust: log and fall back to empty dict
+        current_app.logger.exception(f"Error loading preferences for user {getattr(current_user, 'id', 'unknown')}: {e}")
+        preferences = {}
+
+    # Default shallow preference map used by templates/UI when keys are missing
+    default_preferences = {
+        "feature_timer": True,
+        "feature_focus_mode": False,
+        "feature_scroll_autostart": True,
+        "feature_task_stats": False,
+        "feature_task_timer": True,
+        "feature_deadline_tracker": True,
+        "feature_custom_colors": False,
+        "feature_auto_reminders": False,
+        "feature_priority_sort": True,
+        "feature_task_export": False,
+        "feature_progress_graphs": False
+    }
+    for key, value in default_preferences.items():
+        if key not in preferences:
+            preferences[key] = value
+
     # --- Handle inline add-task POST (from the modal or side form) ---
     if task_form.validate_on_submit():
         # compute due_date: treat date as PACIFIC end of day (23:59) and store UTC naive
@@ -278,7 +333,7 @@ def dashboard_customized():
 
     onboarding = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
 
-    # --- Build features list (honor DB JSON if present plus boolean flags) ---
+    # --- Build features list ---
     features = set()
     # If you store a JSON array in current_user.dashboard_features use it
     try:
@@ -288,7 +343,6 @@ def dashboard_customized():
                 features.update(current_user.dashboard_features)
             else:
                 # if it's a JSON string, try to parse
-                import json
                 try:
                     parsed = json.loads(current_user.dashboard_features)
                     if isinstance(parsed, (list, tuple, set)):
@@ -300,32 +354,152 @@ def dashboard_customized():
         pass
 
     # Map boolean user flags to feature keys used by template
-    if getattr(current_user, 'feature_timer', False):
-        features.add('timer')
-    if getattr(current_user, 'feature_focus_mode', False):
-        features.add('focus_mode')
-    if getattr(current_user, 'feature_scroll_autostart', False):
-        features.add('scroll_autostart')
-    if getattr(current_user, 'feature_task_stats', False):
-        features.add('task_stats')
-    if getattr(current_user, 'feature_task_timer', False):
-        features.add('task_timer')
-    if getattr(current_user, 'feature_deadline_tracker', False):
-        features.add('deadline_tracker')
-    if getattr(current_user, 'feature_custom_colors', False):
-        features.add('custom_colors')
-    if getattr(current_user, 'feature_auto_reminders', False):
-        features.add('auto_reminders')
-    if getattr(current_user, 'feature_priority_sort', False):
-        features.add('priority_sort')
-    if getattr(current_user, 'feature_task_export', False):
-        features.add('task_export')
-    if getattr(current_user, 'feature_progress_graphs', False):
-        features.add('progress_graphs')
+    # NOTE: We add canonical keys (the ones templates/JS expect), and also add aliases where helpful.
+    try:
+        if getattr(current_user, 'feature_timer', False):
+            features.add('timer')
+            # legacy name -> add the more explicit name too
+            features.add('task_timer')
+    except Exception:
+        pass
 
-    # Ensure features is a list before sending to template
+    try:
+        if getattr(current_user, 'feature_task_timer', False):
+            features.add('task_timer')
+            features.add('timer')
+    except Exception:
+        pass
+
+    try:
+        if getattr(current_user, 'feature_focus_mode', False):
+            features.add('focus_mode')
+    except Exception:
+        pass
+
+    try:
+        if getattr(current_user, 'feature_scroll_autostart', False):
+            features.add('scroll_autostart')
+    except Exception:
+        pass
+
+    try:
+        if getattr(current_user, 'feature_task_stats', False):
+            features.add('task_stats')
+    except Exception:
+        pass
+
+    try:
+        if getattr(current_user, 'feature_deadline_tracker', False):
+            features.add('deadline_tracker')
+    except Exception:
+        pass
+
+    try:
+        if getattr(current_user, 'feature_custom_colors', False):
+            features.add('custom_colors')
+    except Exception:
+        pass
+
+    try:
+        if getattr(current_user, 'feature_auto_reminders', False):
+            # registration stores this as feature_auto_reminders; templates check 'reminders'
+            features.add('auto_reminders')
+            features.add('reminders')
+    except Exception:
+        pass
+
+    try:
+        if getattr(current_user, 'feature_priority_sort', False):
+            features.add('priority_sort')
+    except Exception:
+        pass
+
+    try:
+        if getattr(current_user, 'feature_task_export', False):
+            features.add('task_export')
+    except Exception:
+        pass
+
+    try:
+        if getattr(current_user, 'feature_progress_graphs', False):
+            features.add('progress_graphs')
+            features.add('graphs')
+    except Exception:
+        pass
+
+    # Normalize any raw names that may have been stored by forms (e.g. "timer", "auto_reminders", etc.)
+    normalized = set()
+    for f in features:
+        if not isinstance(f, str):
+            continue
+        key = f.strip().lower()
+        # map common aliases to canonical keys used in templates/JS
+        if key in ('timer', 'task_timer'):
+            normalized.add('task_timer')
+            normalized.add('timer')
+        elif key in ('auto_reminders', 'auto-reminders', 'auto reminders', 'auto_reminder'):
+            normalized.add('reminders')
+            normalized.add('auto_reminders')
+        elif key in ('progress_graphs', 'progress-graphs', 'graphs', 'graph'):
+            normalized.add('progress_graphs')
+            normalized.add('graphs')
+        elif key in ('task_stats', 'stats'):
+            normalized.add('task_stats')
+        elif key in ('focus_mode', 'focusmode', 'focus'):
+            normalized.add('focus_mode')
+        elif key in ('scroll_autostart', 'scrollautostart', 'autoscroll'):
+            normalized.add('scroll_autostart')
+        elif key in ('custom_colors', 'colors'):
+            normalized.add('custom_colors')
+        elif key in ('task_export', 'export'):
+            normalized.add('task_export')
+        elif key in ('gamification', 'game'):
+            normalized.add('gamification')
+        elif key in ('tips', 'daily_tips'):
+            normalized.add('tips')
+        elif key in ('reminders',):
+            normalized.add('reminders')
+        else:
+            normalized.add(key)
+
+    # final features list (sorted for deterministic order in templates)
+    features = sorted(list(normalized))
+
+    # --- Map form-style feature keys (feature_*) to dashboard keys ---
+    feature_map = {
+        "feature_timer": "timer",
+        "feature_focus_mode": "focus_mode",
+        "feature_scroll_autostart": "scroll_autostart",
+        "feature_task_stats": "task_stats",
+        "feature_task_timer": "task_timer",
+        "feature_deadline_tracker": "deadline_tracker",
+        "feature_custom_colors": "custom_colors",
+        "feature_auto_reminders": "reminders",     # << maps to reminders card
+        "feature_priority_sort": "priority_sort",
+        "feature_task_export": "task_export",
+        "feature_progress_graphs": "graphs",       # << maps to graphs
+    }
+
+    features = set()
+
+    # Add toggles from current_user
+    for fkey, short in feature_map.items():
+        if getattr(current_user, fkey, False):
+            features.add(short)
+
+    # Merge any JSON-based stored features
+    if current_user.dashboard_features:
+        try:
+            parsed = json.loads(current_user.dashboard_features)
+            if isinstance(parsed, (list, tuple, set)):
+                features.update(parsed)
+        except Exception:
+            pass
+
     features = sorted(list(features))
 
+
+    # --- Render dashboard with preferences passed in ---
     return render_template(
         'dashboard_customized.html',
         user=current_user,
@@ -338,8 +512,11 @@ def dashboard_customized():
         paginated_tasks=paginated_tasks,
         onboarding=onboarding,
         features=features,
+        preferences=preferences,
         task_form=task_form
     )
+
+
 
 
 @main.route('/dashboard/graphs')

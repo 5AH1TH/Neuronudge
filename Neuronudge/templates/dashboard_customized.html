@@ -71,9 +71,12 @@
       <i class="bi bi-gear"></i> Preferences
     </a>
 
+    {% if 'graphs' in features or current_user.feature_progress_graphs %}
     <a href="{{ url_for('main.dashboard_graphs') }}" class="btn btn-outline-primary ms-2">
       <i class="bi bi-bar-chart"></i> Graphs
     </a>
+    {% endif %}
+
 
 
     {% if 'task_export' in features or current_user.feature_task_export %}
@@ -84,10 +87,11 @@
 
     <div class="ms-auto d-flex flex-wrap gap-2">
       <form class="d-flex" method="get" action="{{ url_for('main.dashboard_customized') }}">
-        <input name="q" value="{{ search_term or '' }}" class="form-control" placeholder="Search tasks…">
+        <input name="search" value="{{ search_term or '' }}" class="form-control" placeholder="Search tasks…">
         <button class="btn btn-outline-secondary ms-2">Search</button>
       </form>
     </div>
+
   </div>
 
   <div class="row">
@@ -155,9 +159,12 @@
                     {% endif %}
                   </td>
                   <td class="text-end">
+                    {% if 'task_timer' in features or current_user.feature_task_timer %}
                     <button class="btn btn-sm btn-outline-success scroll-to-timer" data-task-id="{{ task.id }}" data-task-title="{{ task.title }}">
                       ⏱ Start
                     </button>
+                    {% endif %}
+
                     <a href="{{ url_for('main.edit_task', id=task.id) }}" class="btn btn-sm btn-primary">✏️ Edit</a>
                     <button class="btn btn-sm btn-danger delete-task-btn" data-task-id="{{ task.id }}" data-bs-toggle="modal" data-bs-target="#deleteTaskModal">🗑️ Delete</button>
                   </td>
@@ -218,6 +225,7 @@
       <!-- =======================================================
            INLINE FOCUS TIMER
       ======================================================== -->
+      {% if 'task_timer' in features or current_user.feature_task_timer %}
       <div id="inlineTimerOverlay" class="d-none">
         <div id="inlineTimerModal" class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" 
             style="background: rgba(0,0,0,0.7); z-index:1050;">
@@ -236,6 +244,7 @@
             </div>
         </div>
       </div>
+      {% endif %}
 
     </div> <!-- End LEFT Column -->
 
@@ -318,7 +327,7 @@
       <!-- =======================================================
            REMINDERS CARD
       ======================================================== -->
-      {% if 'reminders' in features or current_user.feature_reminders %}
+      {% if 'reminders' in features or current_user.feature_auto_reminders %}
       <div class="card mb-3">
         <div class="card-header"><strong>Upcoming Reminders</strong></div>
         <ul class="list-group list-group-flush">
