@@ -21,39 +21,40 @@
        TOP STATS CARDS
   ========================================================== -->
   <div class="row g-3 mb-4">
-    <div class="col-12 col-md-3">
-      <div class="card h-100 border-primary">
-        <div class="card-body text-center">
-          <div class="h1 mb-0">{{ task_counts.total }}</div>
-          <div class="text-muted">Total Tasks</div>
-        </div>
+  <div class="col-12 col-md-3">
+    <button class="card h-100 border-primary w-100 text-start btn btn-light">
+      <div class="card-body text-center">
+        <div class="h1 mb-0">{{ task_counts.total }}</div>
+        <div class="text-muted">Total Tasks</div>
       </div>
-    </div>
-    <div class="col-12 col-md-3">
-      <div class="card h-100 border-warning">
-        <div class="card-body text-center">
-          <div class="h1 mb-0">{{ task_counts.pending }}</div>
-          <div class="text-muted">Pending</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-md-3">
-      <div class="card h-100 border-success">
-        <div class="card-body text-center">
-          <div class="h1 mb-0">{{ task_counts.completed }}</div>
-          <div class="text-muted">Completed</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-md-3">
-      <div class="card h-100 border-danger">
-        <div class="card-body text-center">
-          <div class="h1 mb-0">{{ task_counts.overdue }}</div>
-          <div class="text-muted">Overdue</div>
-        </div>
-      </div>
-    </div>
+    </button>
   </div>
+  <div class="col-12 col-md-3">
+    <button class="card h-100 border-warning w-100 text-start btn btn-light">
+      <div class="card-body text-center">
+        <div class="h1 mb-0">{{ task_counts.pending }}</div>
+        <div class="text-muted">Pending</div>
+      </div>
+    </button>
+  </div>
+  <div class="col-12 col-md-3">
+    <button class="card h-100 border-success w-100 text-start btn btn-light">
+      <div class="card-body text-center">
+        <div class="h1 mb-0">{{ task_counts.completed }}</div>
+        <div class="text-muted">Completed</div>
+      </div>
+    </button>
+  </div>
+  <div class="col-12 col-md-3">
+    <button class="card h-100 border-danger w-100 text-start btn btn-light">
+      <div class="card-body text-center">
+        <div class="h1 mb-0">{{ task_counts.overdue }}</div>
+        <div class="text-muted">Overdue</div>
+      </div>
+    </button>
+  </div>
+</div>
+
 
   <!-- =========================================================
        ACTION BAR
@@ -343,10 +344,10 @@
       </div>
       {% endif %}
 
-    </div> <!-- End RIGHT Column -->
-  </div> <!-- End ROW -->
+    </div>
+  </div>
 
-</div> <!-- End CONTAINER -->
+</div>
 
 <!-- =========================================================
      NEW TASK MODAL

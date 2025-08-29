@@ -52,34 +52,45 @@ def dashboard():
     filter_priority = request.args.get('priority', 'all')
     search_term = request.args.get('search', '').strip()
 
+    # Base query: all tasks of the user
     base_query = Task.query.filter_by(user_id=current_user.id)
 
+    # Apply status filter properly
+    now = datetime.utcnow()
     if filter_status == 'completed':
         base_query = base_query.filter_by(completed=True)
     elif filter_status == 'pending':
         base_query = base_query.filter_by(completed=False)
+    elif filter_status == 'overdue':
+        base_query = base_query.filter(
+            Task.completed == False,
+            Task.due_date != None,
+            Task.due_date < now
+        )
 
+    # Apply priority filter
     if filter_priority in ['1', '2', '3']:
         base_query = base_query.filter_by(priority=int(filter_priority))
 
+    # Apply search filter
     if search_term:
         base_query = base_query.filter(Task.title.ilike(f'%{search_term}%'))
 
-    tasks = base_query.all()
-
+    # Pagination and ordering
     paginated_tasks = base_query.order_by(
         Task.priority.asc(),
         Task.due_date.asc().nulls_last()
-    ).paginate(page=page, per_page=per_page)
+    ).paginate(page=page, per_page=per_page, error_out=False)
 
-    total_tasks = Task.query.filter_by(user_id=current_user.id).count()
-    pending_tasks = Task.query.filter_by(user_id=current_user.id, completed=False).count()
-    completed_tasks = Task.query.filter_by(user_id=current_user.id, completed=True).count()
-    overdue_tasks = Task.query.filter(
-        Task.user_id == current_user.id,
+    # Counts
+    tasks_all = Task.query.filter_by(user_id=current_user.id)
+    total_tasks = tasks_all.count()
+    pending_tasks = tasks_all.filter_by(completed=False).count()
+    completed_tasks = tasks_all.filter_by(completed=True).count()
+    overdue_tasks = tasks_all.filter(
         Task.completed == False,
         Task.due_date != None,
-        Task.due_date < datetime.utcnow()
+        Task.due_date < now
     ).count()
 
     task_counts = {
@@ -89,18 +100,43 @@ def dashboard():
         'overdue': overdue_tasks
     }
 
-    task_form = TaskForm()
-
-    # Keep your recent_tasks exactly as-is
+    # Recent tasks for the small table (always last 10)
     recent_tasks = Task.query.filter_by(user_id=current_user.id).order_by(
         Task.priority.asc(),
         Task.due_date.asc().nulls_last()
     ).limit(10).all()
 
-    onboarding = OnboardingPreferences.query.filter_by(user_id=current_user.id).first()
+    # Mark task.status for display
+    tasks_for_status = paginated_tasks.items
+    for task in tasks_for_status:
+        if task.due_date and task.due_date < now and not task.completed:
+            task.status = "Late"
+        elif task.completed:
+            task.status = "Completed"
+        else:
+            task.status = "Pending"
 
+    # Recent activity (simplified)
+    class _SimpleActivity:
+        __slots__ = ("description", "timestamp")
+        def __init__(self, description, timestamp):
+            self.description = description
+            self.timestamp = timestamp
+
+    task_feed = Task.query.filter_by(user_id=current_user.id) \
+        .order_by(Task.updated_at.desc().nulls_last(), Task.created_at.desc().nulls_last()) \
+        .limit(10).all()
+
+    recent_activity = [
+        _SimpleActivity(
+            f"Task “{t.title}” — status: {t.status or ('Completed' if t.completed else 'Pending')}",
+            (t.updated_at or t.created_at or datetime.utcnow())
+        )
+        for t in task_feed
+    ]
+
+    # Select template based on profile
     profile_type = getattr(current_user, "profile_type", "general").lower()
-
     if profile_type == "dyslexia":
         dashboard_template = "dashboard_dyslexia.html"
     elif profile_type == "adhd":
@@ -110,65 +146,23 @@ def dashboard():
     else:
         dashboard_template = "dashboard_general.html"
 
-    
-    # ============================
-    # NEW: provide recent_activity
-    # ============================
-
-    ActivityLog = Task.query.filter_by(user_id=current_user.id).order_by(
-        Task.updated_at.desc()
-    ).limit(10).all()
-    
-    try:
-        recent_activity = ActivityLog.query.filter_by(user_id=current_user.id) \
-            .order_by(ActivityLog.timestamp.desc()) \
-            .limit(10).all()
-    except Exception:
-        recent_activity = []
-
-    # Fallback if no ActivityLog rows yet: synthesize simple activity items from Tasks
-    if not recent_activity:
-        class _SimpleActivity:
-            __slots__ = ("description", "timestamp")
-            def __init__(self, description, timestamp):
-                self.description = description
-                self.timestamp = timestamp
-
-        task_feed = Task.query.filter_by(user_id=current_user.id) \
-            .order_by(Task.updated_at.desc().nulls_last(), Task.created_at.desc().nulls_last()) \
-            .limit(10).all()
-
-        recent_activity = [
-            _SimpleActivity(
-                f"Task “{t.title}” — status: {t.status or ('completed' if t.completed else 'pending')}",
-                (t.updated_at or t.created_at or datetime.utcnow())
-            )
-            for t in task_feed
-        ]
-    now = datetime.utcnow()
-    for task in tasks:
-        if task.due_date and task.due_date < now and not task.completed:
-            task.status = "Late"
-        elif task.completed:
-            task.status = "Completed"
-        else:
-            task.status = "Pending"
+    task_form = TaskForm()
     
     return render_template(
         dashboard_template,
-        tasks=tasks,
+        tasks=tasks_for_status,
         recent_tasks=recent_tasks,
-        recent_activity=recent_activity,  # <-- pass it to ALL dashboards
-        onboarding=onboarding,
+        recent_activity=recent_activity,
+        onboarding=OnboardingPreferences.query.filter_by(user_id=current_user.id).first(),
         filter_status=filter_status,
         filter_priority=filter_priority,
         search_term=search_term,
         task_counts=task_counts,
         task_form=task_form,
-        pytz=pytz,
         paginated_tasks=paginated_tasks,
         features=current_user.dashboard_features or []
     )
+
 
 
 @main.route('/dashboard/custom', methods=['GET', 'POST'])
@@ -823,57 +817,111 @@ def all_tasks():
     """
     Route for 'Tasks' page, used in ADHD, Dyslexia, and general dashboards.
     Displays all tasks for the current user, paginated.
+
+    Notes / behavior:
+    - Accepts query parameter `filter` (preferred, used by your template) or `status` (fallback).
+    - Supported filter values: 'all', 'pending', 'completed', 'overdue' (also accepts 'late' as alias).
+    - Pagination via ?page=<n>.
+    - Search via ?search=<term> and priority via ?priority=1|2|3.
+    - Sets task.status for each returned task to one of: 'completed', 'overdue', 'pending'
+      so your template (which checks task.status) will show correct badges.
     """
+    # Pagination
     page = request.args.get('page', 1, type=int)
     per_page = 10
 
-    tasks = Task.query.filter_by(user_id=current_user.id).all()
+    # Support both the template's `filter` param and older `status` param
+    filter_param = request.args.get('filter', None)
+    status_param = request.args.get('status', None)
+    filter_value = filter_param if filter_param is not None else (status_param if status_param is not None else 'all')
 
-    task_counts = {
-        'all': len(tasks),
-        'completed': len([t for t in tasks if t.completed]),
-        'pending': len([t for t in tasks if not t.completed]),
-        'overdue': len([t for t in tasks if t.due_date and t.due_date < datetime.utcnow() and not t.completed])
-    }
-    
-    # Optional filters
-    filter_status = request.args.get('status', 'all')
+    # filters from querystring
     filter_priority = request.args.get('priority', 'all')
     search_term = request.args.get('search', '').strip()
 
+    # Base query (only this user's tasks)
     query = Task.query.filter_by(user_id=current_user.id)
 
-    if filter_status == 'completed':
+    # Apply status/filter
+    if filter_value == 'completed':
         query = query.filter_by(completed=True)
-    elif filter_status == 'pending':
+    elif filter_value == 'pending':
         query = query.filter_by(completed=False)
+    elif filter_value in ('overdue', 'late'):
+        # show not completed and due_date in the past
+        query = query.filter(
+            Task.user_id == current_user.id,
+            Task.completed == False,
+            Task.due_date != None,
+            Task.due_date < datetime.utcnow()
+        )
 
+    # Apply priority filter if provided
     if filter_priority in ['1', '2', '3']:
         query = query.filter_by(priority=int(filter_priority))
 
+    # Apply search
     if search_term:
         try:
             query = query.filter(Task.title.ilike(f"%{search_term}%"))
         except Exception:
+            # fallback for DBs that do not support ilike
             query = query.filter(Task.title.like(f"%{search_term}%"))
 
-    # Ordering
+    # Ordering (priority asc, due_date asc) with fallback if nulls_last not supported
     try:
         ordered_query = query.order_by(Task.priority.asc(), Task.due_date.asc().nulls_last())
     except Exception:
         ordered_query = query.order_by(Task.priority.asc(), Task.due_date.asc())
 
+    # Paginate
     paginated_tasks = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
+    tasks = paginated_tasks.items
 
+    # Compute counts (use DB counts for accuracy)
+    total_count = Task.query.filter_by(user_id=current_user.id).count()
+    completed_count = Task.query.filter_by(user_id=current_user.id, completed=True).count()
+    pending_count = Task.query.filter_by(user_id=current_user.id, completed=False).count()
+    overdue_count = Task.query.filter(
+        Task.user_id == current_user.id,
+        Task.completed == False,
+        Task.due_date != None,
+        Task.due_date < datetime.utcnow()
+    ).count()
+
+    task_counts = {
+        'all': total_count,
+        'completed': completed_count,
+        'pending': pending_count,
+        'overdue': overdue_count
+    }
+
+    # Normalize status for each returned task so template rendering is deterministic.
+    now = datetime.utcnow()
+    for t in tasks:
+        if getattr(t, 'completed', False):
+            t.status = 'completed'
+        elif getattr(t, 'due_date', None) and t.due_date < now:
+            # Mark overdue tasks consistently as 'overdue' so your template badge logic works
+            t.status = 'overdue'
+        else:
+            t.status = 'pending'
+
+    # Render with the variable names your template expects:
+    #  - template uses `filter` in many places, so pass both `filter` and `filter_status` for compatibility
     return render_template(
         "task_list.html",
-        tasks=paginated_tasks.items,
+        tasks=tasks,
         paginated_tasks=paginated_tasks,
-        filter_status=filter_status,
+        filter=filter_value,              # matches your template's `filter` checks
+        filter_status=filter_value,       # compatibility for other code that expects filter_status
         filter_priority=filter_priority,
         search_term=search_term,
         task_counts=task_counts
     )
+
+
+
 
 
 @main.route('/tasks/list')

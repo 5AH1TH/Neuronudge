@@ -6,40 +6,50 @@
     <h1 id="dashboardHeading" class="mb-4 display-4 text-primary">Dashboard</h1>
     <p class="lead">Welcome back, {{ current_user.name or current_user.email }}!</p>
 
-    <div class="row g-4 my-4">
-      <div class="col-md-3 col-sm-6" role="region" aria-label="Tasks summary">
-        <div class="card shadow-sm border-primary h-100">
-          <div class="card-body text-center">
-            <h2 class="card-title display-5">{{ task_counts.total }}</h2>
-            <p class="card-text fs-5">Total Tasks</p>
-          </div>
-        </div>
+    <div class="row g-3 mb-4" style="font-family: 'OpenDyslexic', Arial, sans-serif;">
+  <div class="col-12 col-md-3">
+    <button class="card h-100 w-100 text-center btn"
+            data-status="all"
+            style="background-color:#d6eaff; border:2px solid #007bff; border-radius:12px;">
+      <div class="card-body">
+        <div class="h1 mb-2 fw-bold">{{ task_counts.total }}</div>
+        <div class="fw-semibold" style="letter-spacing:0.5px;">Total Tasks</div>
       </div>
-      <div class="col-md-3 col-sm-6" role="region" aria-label="Pending tasks summary">
-        <div class="card shadow-sm border-warning h-100">
-          <div class="card-body text-center">
-            <h2 class="card-title display-5">{{ task_counts.pending }}</h2>
-            <p class="card-text fs-5">Pending Tasks</p>
-          </div>
-        </div>
+    </button>
+  </div>
+  <div class="col-12 col-md-3">
+    <button class="card h-100 w-100 text-center btn"
+            data-status="pending"
+            style="background-color:#fff3cd; border:2px solid #ffc107; border-radius:12px;">
+      <div class="card-body">
+        <div class="h1 mb-2 fw-bold">{{ task_counts.pending }}</div>
+        <div class="fw-semibold" style="letter-spacing:0.5px;">Pending</div>
       </div>
-      <div class="col-md-3 col-sm-6" role="region" aria-label="Completed tasks summary">
-        <div class="card shadow-sm border-success h-100">
-          <div class="card-body text-center">
-            <h2 class="card-title display-5">{{ task_counts.completed }}</h2>
-            <p class="card-text fs-5">Completed Tasks</p>
-          </div>
-        </div>
+    </button>
+  </div>
+  <div class="col-12 col-md-3">
+    <button class="card h-100 w-100 text-center btn"
+            data-status="completed"
+            style="background-color:#d4edda; border:2px solid #28a745; border-radius:12px;">
+      <div class="card-body">
+        <div class="h1 mb-2 fw-bold">{{ task_counts.completed }}</div>
+        <div class="fw-semibold" style="letter-spacing:0.5px;">Completed</div>
       </div>
-      <div class="col-md-3 col-sm-6" role="region" aria-label="Overdue tasks summary">
-        <div class="card shadow-sm border-danger h-100">
-          <div class="card-body text-center">
-            <h2 class="card-title display-5">{{ task_counts.overdue }}</h2>
-            <p class="card-text fs-5">Overdue Tasks</p>
-          </div>
-        </div>
+    </button>
+  </div>
+  <div class="col-12 col-md-3">
+    <button class="card h-100 w-100 text-center btn"
+            data-status="overdue"
+            style="background-color:#f8d7da; border:2px solid #dc3545; border-radius:12px;">
+      <div class="card-body">
+        <div class="h1 mb-2 fw-bold">{{ task_counts.overdue }}</div>
+        <div class="fw-semibold" style="letter-spacing:0.5px;">Overdue</div>
       </div>
-    </div>
+    </button>
+  </div>
+</div>
+
+
 
     <!-- Quick Actions -->
     <div class="d-flex flex-wrap gap-3 my-4" role="region" aria-label="Quick actions">
@@ -296,4 +306,62 @@ document.addEventListener('DOMContentLoaded', function(){
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const cards = document.querySelectorAll('.row .card.btn');
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      const status = card.dataset.status;
+
+      // Redirect to the all_tasks page with query parameter
+      let url = "{{ url_for('main.all_tasks') }}";
+      if(status && status !== 'all'){
+        url += `?status=${status}`;
+      }
+
+      window.location.href = url;
+    });
+
+    // allow keyboard activation
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.click();
+      }
+    });
+  });
+
+  // highlight the active card
+  const currentStatus = new URLSearchParams(window.location.search).get('status') || 'all';
+  cards.forEach(card => {
+    card.classList.toggle('active-summary', card.dataset.status === currentStatus);
+  });
+});
+
+const statusTitles = {
+  'all': 'All Tasks',
+  'pending': 'Pending',
+  'completed': 'Completed',
+  'overdue': 'Overdue'
+};
+
+cards.forEach(card => {
+  card.addEventListener('click', () => {
+    const status = card.dataset.status;
+    let url = "{{ url_for('main.all_tasks') }}";
+    if(status && status !== 'all'){
+      url += `?status=${status}`;
+    }
+
+    // Set the page title dynamically
+    const titleEl = document.getElementById('all-tasks-title');
+    if(titleEl) titleEl.textContent = statusTitles[status] || 'All Tasks';
+
+    window.location.href = url;
+  });
+});
+
+</script>
+
 {% endblock %}
