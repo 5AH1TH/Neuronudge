@@ -64,19 +64,80 @@ button.btn.filter-btn:focus {
     outline-offset: 2px;
 }
 
-/* ---------- Summary Cards (Dashboard) ----------
-   Slight darken (~15%) on hover and subtle lift
----------------------------------------- */
-.summary-card {
-    transition: filter 0.18s ease-in-out, transform 0.12s ease-in-out, box-shadow 0.18s ease-in-out;
-    cursor: pointer;
-    will-change: transform;
+/* ---------- Summary Cards (Dashboard) ---------- */
+/* Keep border width constant to avoid layout shifts */
+/* Base card style: all cards have visible border (light gray) */
+.summary-card-btn {
+  display: block;
+  text-align: center;
+  border: 2px solid #dee2e6;   /* visible light outline for all cards */
+  border-radius: 0.75rem;
+  padding: 0;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+  background: white;
+  font-family: inherit;
+  min-height: 110px;
 }
-.summary-card:hover {
-    filter: brightness(0.85);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 18px rgba(0,0,0,0.06);
+
+/* inner spacing */
+.summary-card-btn .card-body {
+  padding: 1.05rem 1rem;
 }
+
+/* hover: small lift and subtle darken */
+.summary-card-btn[data-status="all"]:hover,
+.summary-card-btn[data-status="all"]:focus {
+  background-color: rgba(13, 110, 253, 0.25); /* blue 25% opacity */
+  border-color: #0d6efd;
+}
+
+.summary-card-btn[data-status="pending"]:hover,
+.summary-card-btn[data-status="pending"]:focus {
+  background-color: rgba(255, 193, 7, 0.25); /* yellow 25% opacity */
+  border-color: #ffc107;
+}
+
+.summary-card-btn[data-status="completed"]:hover,
+.summary-card-btn[data-status="completed"]:focus {
+  background-color: rgba(40, 167, 69, 0.25); /* green 25% opacity */
+  border-color: #28a745;
+}
+
+.summary-card-btn[data-status="overdue"]:hover,
+.summary-card-btn[data-status="overdue"]:focus {
+  background-color: rgba(220, 53, 69, 0.25); /* red 25% opacity */
+  border-color: #dc3545;
+}
+
+
+/* active-summary: clicked/highlighted state */
+.summary-card-btn.active-summary {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+}
+
+/* colored border only for active */
+.summary-card-btn.active-summary[data-status="all"] {
+  border-color: #0d6efd !important;   /* blue */
+}
+.summary-card-btn.active-summary[data-status="pending"] {
+  border-color: #ffc107 !important;   /* yellow */
+}
+.summary-card-btn.active-summary[data-status="completed"] {
+  border-color: #28a745 !important;   /* green */
+}
+.summary-card-btn.active-summary[data-status="overdue"] {
+  border-color: #dc3545 !important;   /* red */
+}
+
+/* keyboard focus */
+.summary-card-btn:focus-visible {
+  box-shadow: 0 0 0 4px rgba(13,110,253,0.12);
+}
+
+
+
+
 
 /* ---------- Flash Messages ---------- */
 .flash-message {
@@ -137,4 +198,17 @@ button.btn.filter-btn:focus {
 /* ---------- Responsive Tweaks ---------- */
 @media (max-width: 576px) {
     .display-4 { font-size: 1.8rem; }
+}
+
+.summary-card-btn[data-status="all"] {
+  border-color: #0d6efd;   /* always blue */
+}
+.summary-card-btn[data-status="pending"] {
+  border-color: #ffc107;   /* always yellow */
+}
+.summary-card-btn[data-status="completed"] {
+  border-color: #28a745;   /* always green */
+}
+.summary-card-btn[data-status="overdue"] {
+  border-color: #dc3545;   /* always red */
 }

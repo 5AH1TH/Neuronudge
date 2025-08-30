@@ -20,40 +20,67 @@
   <!-- =========================================================
        TOP STATS CARDS
   ========================================================== -->
+    <!-- =========================================================
+       TOP STATS CARDS (clickable buttons -> go to /tasks with status)
+  ========================================================== -->
   <div class="row g-3 mb-4">
   <div class="col-12 col-md-3">
-    <button class="card h-100 border-primary w-100 text-start btn btn-light">
-      <div class="card-body text-center">
+    <button type="button"
+            class="card h-100 w-100 text-center btn summary-card-btn {% if (request.args.get('status') or 'all') == 'all' %}active-summary{% endif %}"
+            data-href="{{ url_for('main.all_tasks', status='all') }}"
+            data-status="all"
+            aria-label="Show all tasks">
+      <div class="card-body">
         <div class="h1 mb-0">{{ task_counts.total }}</div>
         <div class="text-muted">Total Tasks</div>
       </div>
     </button>
   </div>
+
   <div class="col-12 col-md-3">
-    <button class="card h-100 border-warning w-100 text-start btn btn-light">
-      <div class="card-body text-center">
+    <button type="button"
+            class="card h-100 w-100 text-center btn summary-card-btn {% if (request.args.get('status') or '') == 'pending' %}active-summary{% endif %}"
+            data-href="{{ url_for('main.all_tasks', status='pending') }}"
+            data-status="pending"
+            aria-label="Show pending tasks">
+      <div class="card-body">
         <div class="h1 mb-0">{{ task_counts.pending }}</div>
         <div class="text-muted">Pending</div>
       </div>
     </button>
   </div>
+
   <div class="col-12 col-md-3">
-    <button class="card h-100 border-success w-100 text-start btn btn-light">
-      <div class="card-body text-center">
+    <button type="button"
+            class="card h-100 w-100 text-center btn summary-card-btn {% if (request.args.get('status') or '') == 'completed' %}active-summary{% endif %}"
+            data-href="{{ url_for('main.all_tasks', status='completed') }}"
+            data-status="completed"
+            aria-label="Show completed tasks">
+      <div class="card-body">
         <div class="h1 mb-0">{{ task_counts.completed }}</div>
         <div class="text-muted">Completed</div>
       </div>
     </button>
   </div>
+
   <div class="col-12 col-md-3">
-    <button class="card h-100 border-danger w-100 text-start btn btn-light">
-      <div class="card-body text-center">
+    <button type="button"
+            class="card h-100 w-100 text-center btn summary-card-btn {% if (request.args.get('status') or '') == 'overdue' %}active-summary{% endif %}"
+            data-href="{{ url_for('main.all_tasks', status='overdue') }}"
+            data-status="overdue"
+            aria-label="Show overdue tasks">
+      <div class="card-body">
         <div class="h1 mb-0">{{ task_counts.overdue }}</div>
         <div class="text-muted">Overdue</div>
       </div>
     </button>
   </div>
 </div>
+</div>
+
+
+
+
 
 
   <!-- =========================================================
@@ -783,7 +810,272 @@ document.addEventListener('DOMContentLoaded', function () {
   })();
 
 }); // DOMContentLoaded
+
+  // Summary card navigation (safe: uses data-href to avoid quote problems)
+  (function setupSummaryCards() {
+    const cards = document.querySelectorAll('.summary-card-btn');
+    if (!cards || !cards.length) return;
+
+    cards.forEach(card => {
+      // click -> go to exact URL (data-href), fallback to craft query param
+      card.addEventListener('click', () => {
+        const href = card.dataset.href;
+        if (href && href.length) {
+          window.location.href = href;
+          return;
+        } 
+        // fallback: use status param and keep other query params
+        const status = card.dataset.status || 'all';
+        const params = new URLSearchParams(window.location.search);
+        if (status && status !== 'all') params.set('status', status);
+        else params.delete('status');
+        params.delete('page'); // reset pagination when switching view
+        window.location.search = params.toString();
+      });
+
+      // keyboard activation for accessibility
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          card.click();
+        }
+      });
+    });
+  })();
+
+  document.addEventListener('DOMContentLoaded', function () {
+  // select only the summary buttons we just added
+  const summaryBtns = document.querySelectorAll('.summary-card-btn');
+  if (!summaryBtns || summaryBtns.length === 0) return;
+
+  // find a suitable heading to update on click.
+  // we'll try a few common selectors so this works across your templates.
+  const headingSelectors = [
+    '#dashboardHeading',        // explicit id if you have it
+    'h1.display-5',             // dashboard_general / customized header
+    'h1.display-4',             // dyslexia header versions
+    'h1'                        // fallback to any H1
+  ];
+  let headerEl = null;
+  for (const sel of headingSelectors) {
+    const el = document.querySelector(sel);
+    if (el) { headerEl = el; break; }
+  }
+
+  const titleMap = {
+    all: 'All Tasks',
+    pending: 'Pending',
+    completed: 'Completed',
+    overdue: 'Overdue'
+  };
+
+  function setActive(btn) {
+    summaryBtns.forEach(b => b.classList.remove('active-summary'));
+    btn.classList.add('active-summary');
+  }
+
+  // attach handlers
+  summaryBtns.forEach(btn => {
+    // keyboard accessibility
+    btn.setAttribute('tabindex', '0');
+
+    btn.addEventListener('click', function (e) {
+      // prevent other delegated handlers from firing (you had problems with status toggles)
+      e.preventDefault();
+      e.stopPropagation();
+      const href = btn.dataset.href;
+      const status = btn.dataset.status;
+
+      // immediate visual feedback: change heading
+      if (headerEl && titleMap[status]) {
+        headerEl.textContent = titleMap[status];
+      }
+
+      setActive(btn);
+
+      // small delay so user sees change (optional) then navigate
+      // You can remove the timeout if you want instant navigation.
+      setTimeout(() => {
+        if (href) window.location.href = href;
+      }, 60);
+    });
+
+    // keyboard activation
+    btn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        btn.click();
+      }
+    });
+  });
+
+  // highlight currently active based on URL status param
+  (function highlightCurrentFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const current = (params.get('status') || 'all').toLowerCase();
+    summaryBtns.forEach(b => {
+      if ((b.dataset.status || '').toLowerCase() === current) {
+        setActive(b);
+      }
+    });
+  })();
+});
 </script>
+
+<style>
+/* keep bootstrap border-* classes as source of truth (do NOT override border here) */
+.summary-card-btn {
+  border: 3px solid transparent;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.task-card {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, border 0.2s;
+    border: 2px solid transparent;
+    border-radius: 12px;
+}
+
+/* hover lift without changing border width/size */
+.summary-card-btn:hover {
+  transform: scale(1.05);
+  border-color: #888; /* Hover color */
+}
+
+.task-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
+}
+
+
+/* subtle active styling */
+.summary-card-btn.active-summary {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+
+/* Active (selected) filter */
+.task-card.active {
+    border: 3px solid #007bff; /* default blue */
+    box-shadow: 0px 6px 14px rgba(0,0,0,0.2);
+}
+
+/* ensure color-coded active border — more specific to override bootstrap if needed */
+.summary-card-btn.active-summary[data-status="all"] {
+  border-color: #0d6efd !important;   /* blue */
+}
+.summary-card-btn.active-summary[data-status="pending"] {
+  border-color: #ffc107 !important;   /* yellow */
+}
+.summary-card-btn.active-summary[data-status="completed"] {
+  border-color: #28a745 !important;   /* green */
+}
+.summary-card-btn.active-summary[data-status="overdue"] {
+  border-color: #dc3545 !important;   /* red */
+}
+
+/* Give each card its own border color when active */
+.task-card.active:nth-child(1) { border-color: #007bff; } /* All Tasks = Blue */
+.task-card.active:nth-child(2) { border-color: #ffc107; } /* Pending = Yellow */
+.task-card.active:nth-child(3) { border-color: #28a745; } /* Completed = Green */
+.task-card.active:nth-child(4) { border-color: #dc3545; } /* Overdue = Red */
+
+/* keyboard focus accessibility */
+.summary-card-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(13,110,253,0.12);
+}
+</style>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const summaryBtns = Array.from(document.querySelectorAll('.summary-card-btn'));
+  if (!summaryBtns.length) return;
+
+  // map for heading text when clicked
+  const titleMap = {
+    all: 'All Tasks',
+    pending: 'Pending',
+    completed: 'Completed',
+    overdue: 'Overdue'
+  };
+
+  // find a heading to update visually (attempts common selectors)
+  const headingSelectors = ['#dashboardHeading', 'h1.display-5', 'h1.display-4', 'h1'];
+  let headerEl = null;
+  for (const s of headingSelectors) {
+    const el = document.querySelector(s);
+    if (el) { headerEl = el; break; }
+  }
+
+  function setActive(btn) {
+    summaryBtns.forEach(b => b.classList.remove('active-summary'));
+    if (btn) btn.classList.add('active-summary');
+  }
+
+  // Highlight from current query param on page load
+  (function highlightFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const current = (params.get('status') || 'all').toLowerCase();
+    const match = summaryBtns.find(b => (b.dataset.status || '').toLowerCase() === current);
+    if (match) setActive(match);
+  })();
+
+  // Attach handlers
+  summaryBtns.forEach(btn => {
+    // make keyboard focusable
+    if (!btn.hasAttribute('tabindex')) btn.setAttribute('tabindex', '0');
+
+    btn.addEventListener('click', function (e) {
+      // quick visual title change
+      const status = (this.dataset.status || 'all').toLowerCase();
+      if (headerEl && titleMap[status]) headerEl.textContent = titleMap[status];
+      setActive(this);
+
+      // final navigation (create a normal history entry so Back works)
+      const href = this.dataset.href;
+      if (href) {
+        // small delay to let the visual change register, then navigate
+        setTimeout(() => { window.location.assign(href); }, 60);
+      } else {
+        // fallback: build URL with status param keeping other params
+        const params = new URLSearchParams(window.location.search);
+        if (status && status !== 'all') params.set('status', status); else params.delete('status');
+        params.delete('page');
+        const newUrl = window.location.pathname + '?' + params.toString();
+        setTimeout(() => { window.location.assign(newUrl); }, 60);
+      }
+    });
+
+    // allow Enter / Space to trigger
+    btn.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault(); this.click();
+      }
+    });
+  });
+});
+
+
+// --------------------------
+// SUMMARY CARDS CLICK HANDLER
+// --------------------------
+(function setupSummaryCards() {
+  document.querySelectorAll('.summary-card-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const href = this.dataset.href;
+      if (href) {
+        // Use replace() so history stays clean and back works
+        window.location.replace(href);
+      }
+    });
+  });
+})();
+
+
+</script>
+
 {% endblock %}
 
 {% endblock %}

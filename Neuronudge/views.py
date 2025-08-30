@@ -84,10 +84,11 @@ def dashboard():
 
     # Counts
     tasks_all = Task.query.filter_by(user_id=current_user.id)
-    total_tasks = tasks_all.count()
-    pending_tasks = tasks_all.filter_by(completed=False).count()
-    completed_tasks = tasks_all.filter_by(completed=True).count()
-    overdue_tasks = tasks_all.filter(
+    total_tasks = Task.query.filter_by(user_id=current_user.id).count()
+    completed_tasks = Task.query.filter_by(user_id=current_user.id, completed=True).count()
+    pending_tasks = Task.query.filter_by(user_id=current_user.id, completed=False).count()
+    overdue_tasks = Task.query.filter(
+        Task.user_id == current_user.id,
         Task.completed == False,
         Task.due_date != None,
         Task.due_date < now
@@ -160,7 +161,8 @@ def dashboard():
         task_counts=task_counts,
         task_form=task_form,
         paginated_tasks=paginated_tasks,
-        features=current_user.dashboard_features or []
+        features=current_user.dashboard_features or [],
+        now=now
     )
 
 
@@ -988,3 +990,4 @@ def internal_server_error(e):
 @main.route('/')
 def home():
     return render_template('home.html', title='Home')
+
