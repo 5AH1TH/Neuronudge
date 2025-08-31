@@ -723,21 +723,21 @@ document.addEventListener('DOMContentLoaded', function () {
       postJSON(deleteUrl, {})
         .then(resp => {
           if (!resp.ok) {
-            return fetch(deleteUrl, { method: 'POST', headers: CSRF_TOKEN ? { 'X-CSRFToken': CSRF_TOKEN } : {} });
+            return fetch(deleteUrl, { method: 'POST' }); // fallback
           }
           return resp;
         })
         .then(() => {
-          const bs = bootstrap.Modal.getInstance(deleteModalEl);
-          if (bs) bs.hide();
-          window.location.reload();
+          // remove the row from the table
+          const row = document.querySelector(`.delete-task-btn[data-task-id="${deleteTaskId}"]`)?.closest('tr');
+          if (row) row.remove();
+          // close modal
+          const bsModal = bootstrap.Modal.getInstance(deleteModalEl);
+          if (bsModal) bsModal.hide();
         })
-        .catch(err => {
-          console.error('Delete failed', err);
-          window.location.reload();
-        });
+        .catch(err => console.error('Delete failed:', err));
     });
-  })();
+  })(); // end setupDeleteModal
 
   // --------------------------
   // FILTER DROPDOWNS
@@ -923,139 +923,148 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <style>
-/* keep bootstrap border-* classes as source of truth (do NOT override border here) */
+/* ============ SUMMARY CARD STYLING ============ */
+
+/* Base card style */
 .summary-card-btn {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 220px;
+  height: 140px;
+  border-radius: 16px;
   border: 3px solid transparent;
-  transition: transform 0.2s, border-color 0.2s;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: all 0.25s ease;
+  cursor: pointer;
+  margin: 10px;
 }
 
-.task-card {
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s, border 0.2s;
-    border: 2px solid transparent;
-    border-radius: 12px;
-}
-
-/* hover lift without changing border width/size */
+/* Hover effect – fill with 25% opacity color */
 .summary-card-btn:hover {
-  transform: scale(1.05);
-  border-color: #888; /* Hover color */
+  transform: translateY(-6px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.15);
 }
 
-.task-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
-}
-
-
-/* subtle active styling */
+/* Active/selected state */
 .summary-card-btn.active-summary {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  transform: translateY(-6px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.18);
 }
 
-/* Active (selected) filter */
-.task-card.active {
-    border: 3px solid #007bff; /* default blue */
-    box-shadow: 0px 6px 14px rgba(0,0,0,0.2);
-}
-
-/* ensure color-coded active border — more specific to override bootstrap if needed */
+/* Colored borders for active states */
 .summary-card-btn.active-summary[data-status="all"] {
   border-color: #0d6efd !important;   /* blue */
+  background-color: rgba(13, 110, 253, 0.25); /* blue fill */
 }
 .summary-card-btn.active-summary[data-status="pending"] {
   border-color: #ffc107 !important;   /* yellow */
+  background-color: rgba(255, 193, 7, 0.25); /* yellow fill */
 }
 .summary-card-btn.active-summary[data-status="completed"] {
   border-color: #28a745 !important;   /* green */
+  background-color: rgba(40, 167, 69, 0.25); /* green fill */
 }
 .summary-card-btn.active-summary[data-status="overdue"] {
   border-color: #dc3545 !important;   /* red */
-}
-
-/* Give each card its own border color when active */
-.task-card.active:nth-child(1) { border-color: #007bff; } /* All Tasks = Blue */
-.task-card.active:nth-child(2) { border-color: #ffc107; } /* Pending = Yellow */
-.task-card.active:nth-child(3) { border-color: #28a745; } /* Completed = Green */
-.task-card.active:nth-child(4) { border-color: #dc3545; } /* Overdue = Red */
-
-/* keyboard focus accessibility */
-.summary-card-btn:focus {
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(13,110,253,0.12);
+  background-color: rgba(220, 53, 69, 0.25); /* red fill */
 }
 </style>
 
 
+
+<!-- FIX SCRIPT LATER-->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  const summaryBtns = Array.from(document.querySelectorAll('.summary-card-btn'));
-  if (!summaryBtns.length) return;
 
-  // map for heading text when clicked
-  const titleMap = {
-    all: 'All Tasks',
-    pending: 'Pending',
-    completed: 'Completed',
-    overdue: 'Overdue'
-  };
+  // --------------------------
+  // Feature set (safe Jinja -> JS)
+  // --------------------------
+  const enabledFeatures = new Set(JSON.parse('{{ (features|default([]))|tojson|safe }}'));
+  function hasFeature(name) { return enabledFeatures.has(name); }
+  window.dashboardFeatures = Array.from(enabledFeatures); // for debugging in browser console
 
-  // find a heading to update visually (attempts common selectors)
-  const headingSelectors = ['#dashboardHeading', 'h1.display-5', 'h1.display-4', 'h1'];
-  let headerEl = null;
-  for (const s of headingSelectors) {
-    const el = document.querySelector(s);
-    if (el) { headerEl = el; break; }
+  // --------------------------
+  // CSRF helper (safe fallback)
+  // --------------------------
+  function getCsrfToken() {
+    const csrfInput = document.querySelector('input[name="csrf_token"]');
+    if (csrfInput && csrfInput.value) return csrfInput.value;
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.getAttribute('content');
+    return null;
+  }
+  const CSRF_TOKEN = getCsrfToken();  
+
+  // --------------------------
+  // Generic POST JSON helper
+  // --------------------------
+  function postJSON(url, payload) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (CSRF_TOKEN) headers['X-CSRFToken'] = CSRF_TOKEN;
+    return fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
   }
 
-  function setActive(btn) {
-    summaryBtns.forEach(b => b.classList.remove('active-summary'));
-    if (btn) btn.classList.add('active-summary');
-  }
+  // --------------------------
+  // (rest of export/timer/delete/filter/progress unchanged…)
+  // --------------------------
+  // ...
 
-  // Highlight from current query param on page load
-  (function highlightFromQuery() {
+  // --------------------------
+  // SUMMARY CARDS (FIXED: no default active)
+  // --------------------------
+  (function setupSummaryCardsFixed() {
+    const summaryBtns = Array.from(document.querySelectorAll('.summary-card-btn'));
+    if (!summaryBtns.length) return;
+
+    // Always clear server-added classes first
+    summaryBtns.forEach(b => b.classList.remove('active', 'active-summary'));
+
+    // Then only apply based on ?status=
     const params = new URLSearchParams(window.location.search);
-    const current = (params.get('status') || 'all').toLowerCase();
-    const match = summaryBtns.find(b => (b.dataset.status || '').toLowerCase() === current);
-    if (match) setActive(match);
+    const statusParam = params.get('status');
+    if (statusParam) {
+      const match = summaryBtns.find(b => (b.dataset.status || '').toLowerCase() === statusParam.toLowerCase());
+      if (match) match.classList.add('active-summary');
+    }
+
+    function setActive(btn) {
+      summaryBtns.forEach(b => b.classList.remove('active-summary'));
+      if (btn) btn.classList.add('active-summary');
+    }
+
+    summaryBtns.forEach(btn => {
+      if (btn.dataset.wired === '1') return;
+      btn.dataset.wired = '1';
+      if (!btn.hasAttribute('tabindex')) btn.setAttribute('tabindex', '0');
+
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const status = (this.dataset.status || '').toLowerCase();
+        setActive(this);
+
+        const href = this.dataset.href;
+        setTimeout(() => {
+          if (href) {
+            window.location.assign(href);
+          } else {
+            const p = new URLSearchParams(window.location.search);
+            if (status) p.set('status', status); else p.delete('status');
+            p.delete('page');
+            window.location.assign(window.location.pathname + '?' + p.toString());
+          }
+        }, 50);
+      });
+
+      btn.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); this.click(); }
+      });
+    });
   })();
-
-  // Attach handlers
-  summaryBtns.forEach(btn => {
-    // make keyboard focusable
-    if (!btn.hasAttribute('tabindex')) btn.setAttribute('tabindex', '0');
-
-    btn.addEventListener('click', function (e) {
-      // quick visual title change
-      const status = (this.dataset.status || 'all').toLowerCase();
-      if (headerEl && titleMap[status]) headerEl.textContent = titleMap[status];
-      setActive(this);
-
-      // final navigation (create a normal history entry so Back works)
-      const href = this.dataset.href;
-      if (href) {
-        // small delay to let the visual change register, then navigate
-        setTimeout(() => { window.location.assign(href); }, 60);
-      } else {
-        // fallback: build URL with status param keeping other params
-        const params = new URLSearchParams(window.location.search);
-        if (status && status !== 'all') params.set('status', status); else params.delete('status');
-        params.delete('page');
-        const newUrl = window.location.pathname + '?' + params.toString();
-        setTimeout(() => { window.location.assign(newUrl); }, 60);
-      }
-    });
-
-    // allow Enter / Space to trigger
-    btn.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter' || ev.key === ' ') {
-        ev.preventDefault(); this.click();
-      }
-    });
-  });
-});
 
 
 // --------------------------
@@ -1071,6 +1080,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   });
+});
 })();
 
 
