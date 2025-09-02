@@ -1072,18 +1072,34 @@ document.addEventListener('DOMContentLoaded', function () {
 // --------------------------
 (function setupSummaryCards() {
   document.querySelectorAll('.summary-card-btn').forEach(btn => {
-    btn.addEventListener('click', function () {
-      const href = this.dataset.href;
-      if (href) {
-        // Use replace() so history stays clean and back works
-        window.location.replace(href);
+    btn.addEventListener('click', function (e) {
+      e.preventDefault(); // stop default navigation first
+      const card = this.closest('.summary-card');
+
+      if (card) {
+        // Temporary flash animation
+        card.classList.add('clicked');
+        setTimeout(() => {
+          card.classList.remove('clicked'); // remove before navigating
+          window.location.href = this.dataset.href;
+        }, 150);
+      } else {
+        window.location.href = this.dataset.href;
       }
     });
   });
-});
+  });
 })();
 
+</script>
 
+<script>
+  // When user comes back via back button, remove all highlights
+  window.addEventListener("pageshow", function (event) {
+    document.querySelectorAll('.summary-card.active').forEach(card => {
+      card.classList.remove('active');
+    });
+  });
 </script>
 
 {% endblock %}
