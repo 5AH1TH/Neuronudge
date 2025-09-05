@@ -29,10 +29,51 @@
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
+
+
+    .btn-back-dashboard:hover {
+        background-color: #4752c4;
+        color: white;
+    }
+
+    .btn-back-dashboard i {
+        margin-right: 8px;
+        font-size: 14px;
+    }
+
+    .back-button-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+
+    .btn-back-dashboard {
+        display: inline-flex;
+        align-items: center;
+        padding: 10px 20px;
+        background-color: #5865f2;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s ease;
+    }
+
     </style>
 </head>
 <body>
     <h1>Task Statistics Dashboard</h1>
+
+    <div class="back-button-container">
+        <form action="{{ url_for('main.dashboard') }}" method="get">
+            <button type="submit" class="btn-back-dashboard">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </button>
+        </form>
+    </div>
 
     <!-- JSON data safely embedded -->
     <script id="taskStatsJSON" type="application/json">
