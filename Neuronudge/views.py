@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from .models import Task, OnboardingPreferences, User
 from . import db
-from .forms import OnboardingForm, TaskForm, ProfileUpdateForm, PasswordChangeForm, RegisterForm, ChangePasswordForm
+from .forms import OnboardingForm, TaskForm, ProfileUpdateForm, RegisterForm, ChangePasswordForm
 from datetime import datetime, time
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -715,21 +715,21 @@ def profile():
     return render_template('profile.html', form=form, change_password_form=change_password_form)
 
 
-@main.route('/change-password', methods=['GET', 'POST'])
+@main.route("/change-password", methods=["GET", "POST"])
 @login_required
 def change_password():
-    form = PasswordChangeForm()
+    form = ChangePasswordForm()
     if form.validate_on_submit():
-        if not current_user.check_password(form.old_password.data):
-            flash("Old password is incorrect.", category='error')
+        if not current_user.check_password(form.current_password.data):
+            flash("Current password is incorrect.", "danger")
         else:
             current_user.set_password(form.new_password.data)
             db.session.commit()
-            flash("Password changed successfully!", category='success')
+            flash("Password updated successfully!", "success")
             log_action(current_user.id, "Changed password")
-            return redirect(url_for('main.profile'))
-
-    return render_template('change_password.html', form=form)
+            return redirect(url_for("main.dashboard"))
+        
+    return render_template("change_password.html", form=form)
 
 
 @main.route('/tasks/complete/<int:id>', methods=['POST'])
