@@ -3,6 +3,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
+import os
 
 # --- Initialize extensions ---
 db = SQLAlchemy()
@@ -24,6 +25,9 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = 'dev' #Replace later
     app.config['ALLOWED_EXTENSIONS'] = {"png","jpg","jpeg","gif"}
+    app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads', 'avatars')
+    app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
+    
     # --- Initialize extensions with app ---
     db.init_app(app)
     migrate.init_app(app, db)
@@ -37,6 +41,8 @@ def create_app():
     def load_user(user_id):
         from Neuronudge.models import User  # local import to avoid circular import
         return User.query.get(int(user_id))
+
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     # --- Register Blueprints ---
     from Neuronudge.views import main

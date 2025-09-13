@@ -933,32 +933,30 @@ def task_list():
     return redirect(url_for('main.all_tasks'))
 
 
-@main.route('/upload_avatar', methods=['POST'])
+@main.route("/upload_avatar", methods=["POST"])
 @login_required
 def upload_avatar():
     if 'avatar' not in request.files:
-        flash("No file part.", "danger")
-        return redirect(url_for('main.profile'))
+        flash("No file part", "danger")
+        return redirect(url_for("main.profile"))
 
     file = request.files['avatar']
     if file.filename == '':
-        flash("No selected file.", "warning")
-        return redirect(url_for('main.profile'))
+        flash("No selected file", "danger")
+        return redirect(url_for("main.profile"))
 
-    if file and allowed_file(file.filename):
+    if file:
         filename = secure_filename(file.filename)
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # Save URL in DB (relative path for static serving)
-        current_user.avatar_url = url_for('static', filename=f'uploads/{filename}')
+        # Save relative path to DB (so templates can use it)
+        current_user.avatar = f"uploads/avatars/{filename}"
         db.session.commit()
 
-        flash("Avatar updated successfully!", "success")
-        return redirect(url_for('main.profile'))
+        flash("Avatar uploaded successfully!", "success")
+    return redirect(url_for("main.profile"))
 
-    flash("Invalid file type. Allowed: png, jpg, jpeg, gif", "danger")
-    return redirect(url_for('main.profile'))
 
 @main.route('/task/update_status/<int:id>', methods=['POST'])
 @login_required
