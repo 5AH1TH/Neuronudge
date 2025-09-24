@@ -514,7 +514,6 @@ def dashboard_customized():
 
 
 
-
 @main.route('/dashboard/graphs')
 @login_required
 def dashboard_graphs():
@@ -534,6 +533,7 @@ def dashboard_graphs():
     }
 
     return render_template("dashboard_graphs.html", task_stats=task_stats)
+
 
 
 @main.route('/onboarding', methods=['GET', 'POST'])
@@ -566,6 +566,7 @@ def onboarding():
         form.notifications_enabled.data = existing.notifications_enabled
 
     return render_template('onboarding.html', form=form)
+
 
 
 @main.route('/task/new', methods=['GET', 'POST'])
@@ -612,6 +613,7 @@ def create_task():
     return render_template('create_task.html', form=form)
 
 
+
 @main.route('/task/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_task(id):
@@ -654,6 +656,7 @@ def edit_task(id):
     return render_template('edit_task.html', form=form, task=task)
 
 
+
 @main.route('/task/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_task(id):
@@ -675,6 +678,7 @@ def delete_task(id):
     return redirect(url_for('main.dashboard'))
 
 
+
 @main.route('/tasks/export')
 @login_required
 def export_tasks():
@@ -689,6 +693,7 @@ def export_tasks():
     } for t in tasks]
     log_action(current_user.id, "Exported tasks as JSON")
     return jsonify({'tasks': task_data})
+
 
 
 @main.route('/profile', methods=['GET', 'POST'])
@@ -715,6 +720,7 @@ def profile():
     return render_template('profile.html', form=form, change_password_form=change_password_form)
 
 
+
 @main.route("/change-password", methods=["GET", "POST"])
 @login_required
 def change_password():
@@ -732,6 +738,7 @@ def change_password():
     return render_template("change_password.html", form=form)
 
 
+
 @main.route('/tasks/complete/<int:id>', methods=['POST'])
 @login_required
 def toggle_task_completion(id):
@@ -744,6 +751,7 @@ def toggle_task_completion(id):
     return jsonify({"success": True, "completed": task.completed})
 
 
+
 @main.route('/tasks/reminder/<int:id>', methods=['POST'])
 @login_required
 def toggle_task_reminder(id):
@@ -754,6 +762,7 @@ def toggle_task_reminder(id):
     db.session.commit()
     log_action(current_user.id, f"Toggled reminder for task '{task.title}' to {task.reminder_set}")
     return jsonify({"success": True, "reminder_set": task.reminder_set})
+
 
 
 # Bulk task operations
@@ -771,6 +780,7 @@ def bulk_complete():
     flash(f"Marked {updated} tasks as completed.", category='success')
     log_action(current_user.id, f"Bulk marked {updated} tasks as completed")
     return redirect(url_for('main.dashboard'))
+
 
 
 @main.route('/tasks/bulk-delete', methods=['POST'])
@@ -811,6 +821,7 @@ def task_search():
     results = query.order_by(Task.priority.asc(), Task.due_date.asc().nulls_last()).all()
 
     return render_template('task_search.html', results=results)
+
 
 
 @main.route('/tasks')
@@ -924,8 +935,6 @@ def all_tasks():
 
 
 
-
-
 @main.route('/tasks/list')
 @login_required
 def task_list():
@@ -933,6 +942,7 @@ def task_list():
     return redirect(url_for('main.all_tasks'))
 
 
+# Upload avatar
 @main.route("/upload_avatar", methods=["POST"])
 @login_required
 def upload_avatar():
@@ -958,6 +968,7 @@ def upload_avatar():
     return redirect(url_for("main.profile"))
 
 
+# Update task status
 @main.route('/task/update_status/<int:id>', methods=['POST'])
 @login_required
 def update_status(id):
@@ -972,18 +983,26 @@ def update_status(id):
         return jsonify({'success': True})
     return jsonify({'success': False}), 400
 
+
+
 # Custom error handlers
 @main.app_errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
 
+
+
 @main.app_errorhandler(403)
 def forbidden(e):
     return render_template('403.html'), 403
 
+
+
 @main.app_errorhandler(500)
 def internal_server_error(e):
     return render_template('500.html'), 500
+
+
 
 @main.route('/')
 def home():
