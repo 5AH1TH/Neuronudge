@@ -82,6 +82,12 @@ def dashboard():
         Task.due_date.asc().nulls_last()
     ).paginate(page=page, per_page=per_page, error_out=False)
 
+    # Only show 3 tasks in the preview section
+    dashboard_preview_tasks = Task.query.filter_by(user_id=current_user.id).order_by(
+        Task.priority.asc(),
+        Task.due_date.asc().nulls_last()
+    ).limit(3).all()
+
     # Counts
     tasks_all = Task.query.filter_by(user_id=current_user.id)
     total_tasks = Task.query.filter_by(user_id=current_user.id).count()
@@ -153,6 +159,7 @@ def dashboard():
         dashboard_template,
         tasks=tasks_for_status,
         recent_tasks=recent_tasks,
+        dashboard_preview_tasks=dashboard_preview_tasks,
         recent_activity=recent_activity,
         onboarding=OnboardingPreferences.query.filter_by(user_id=current_user.id).first(),
         filter_status=filter_status,
@@ -162,7 +169,8 @@ def dashboard():
         task_form=task_form,
         paginated_tasks=paginated_tasks,
         features=current_user.dashboard_features or [],
-        now=now
+        now=now,
+        total_tasks=total_tasks
     )
 
 

@@ -72,7 +72,6 @@
             <a href="{{ url_for('main.dashboard_graphs') }}" class="btn btn-lg btn-outline-primary" aria-label="View task graphs">
                 <i class="bi bi-bar-chart me-2"></i> Graphs
             </a>
-
             {% endif %}
         </div>
 
@@ -91,8 +90,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% if recent_tasks %}
-                        {% for task in recent_tasks %}
+                    {% if dashboard_preview_tasks %}
+                        {% for task in dashboard_preview_tasks %}
                         <tr>
                             <td>{{ task.title }}</td>
                             <td>{{ task.due_date.strftime('%b %d, %Y') if task.due_date else 'No due date' }}</td>
@@ -117,7 +116,6 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <!-- NEW Start Task button -->
                                 <button
                                     type="button"
                                     class="btn btn-sm btn-success start-task-btn"
@@ -135,6 +133,18 @@
                             </td>
                         </tr>
                         {% endfor %}
+
+                        {% if total_tasks > 3 %}
+                        <tr class="table-info">
+                            <td colspan="5" class="text-center">
+                                <a href="{{ url_for('main.all_tasks') }}" class="fw-bold text-decoration-none">
+                                    <i class="fa-solid fa-angles-right me-2"></i>
+                                    View all {{ total_tasks }} tasks ({{ total_tasks - 3 }} more)
+                                </a>
+                            </td>
+                        </tr>
+                        {% endif %}
+
                     {% else %}
                     <tr>
                         <td colspan="5" class="text-center text-muted">No recent tasks found. Start by creating a new task!</td>
@@ -147,7 +157,6 @@
         <!-- Timer + Form (hidden until Start Task pressed) -->
         <div id="task-timer-section" class="mt-4" style="display:none;">
             <div class="d-flex">
-                <!-- LEFT: form -->
                 <div class="flex-grow-1 me-3">
                     <div class="card shadow-sm p-3">
                         <h5>Set Task Duration</h5>
@@ -157,7 +166,6 @@
                         <button class="btn btn-success mt-2" id="start-timer">Start</button>
                     </div>
                 </div>
-                <!-- RIGHT: timer -->
                 <div class="flex-shrink-0" style="width:35%;">
                     <div class="card shadow-sm p-3">
                         <h5 class="text-center">Task Timer</h5>
@@ -265,13 +273,10 @@
 </script>
 
 <style>
-    /* Hover effect – fill with 25% opacity color */
+    /* Hover effect */
     .summary-card-btn:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 10px 22px rgba(0,0,0,0.15);
+        transform: translateY(-6px);
+        box-shadow: 0 10px 22px rgba(0,0,0,0.15);
     }
-</style>
-<style>
-
 </style>
 {% endblock %}
