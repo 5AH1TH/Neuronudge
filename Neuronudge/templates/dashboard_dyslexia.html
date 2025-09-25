@@ -82,55 +82,67 @@
         </thead>
         <tbody>
           {% if recent_tasks %}
-            {% for task in recent_tasks %}
-            <tr id="task-row-{{ task.id }}">
-              <td>{{ task.title }}</td>
-              <td>{{ task.due_date.strftime('%b %d, %Y') if task.due_date else 'No due date' }}</td>
-              <td>
-                {% if task.priority == 1 %}
-                  <span class="badge bg-danger">High</span>
-                {% elif task.priority == 2 %}
-                  <span class="badge bg-warning text-dark">Medium</span>
-                {% elif task.priority == 3 %}
-                  <span class="badge bg-secondary">Low</span>
-                {% else %}
-                  <span class="badge bg-secondary">Unknown</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if task.status == "Late" %}
-                    <span class="badge bg-danger">Late</span>
-                {% elif task.status == "Completed" %}
-                    <span class="badge bg-success">Completed</span>
-                {% else %}
-                    <span class="badge bg-warning text-dark">Pending</span>
-                {% endif %}
-              </td>
-              <td class="text-center">
-                {% if not task.completed %}
-                <button
-                  type="button"
-                  class="btn btn-sm btn-success start-task-btn"
-                  data-task-id="{{ task.id }}"
-                  data-task-title="{{ task.title }}"
-                  aria-label="Start task {{ task.title }}"
-                >▶ Start</button>
-                {% endif %}
-                <a href="{{ url_for('main.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary" aria-label="Edit task {{ task.title }}">
-                  <i class="fa-solid fa-pen-to-square"></i> Edit
-                </a>
-                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-task" data-task-id="{{ task.id }}" aria-label="Delete task {{ task.title }}">
-                  <i class="fa-solid fa-trash"></i> Delete
-                </button>
-              </td>
-            </tr>
-            {% endfor %}
+              {% for task in recent_tasks[:3] %}
+              <tr>
+                  <td>{{ task.title }}</td>
+                  <td>{{ task.due_date.strftime('%b %d, %Y') if task.due_date else 'No due date' }}</td>
+                  <td>
+                      {% if task.priority == 1 %}
+                          <span class="badge bg-danger">High</span>
+                      {% elif task.priority == 2 %}
+                          <span class="badge bg-warning text-dark">Medium</span>
+                      {% elif task.priority == 3 %}
+                          <span class="badge bg-secondary">Low</span>
+                      {% else %}
+                          <span class="badge bg-secondary">Unknown</span>
+                      {% endif %}
+                  </td>
+                  <td>
+                      {% if task.status == "Late" %}
+                          <span class="badge bg-danger">Late</span>
+                      {% elif task.status == "Completed" %}
+                          <span class="badge bg-success">Completed</span>
+                      {% else %}
+                          <span class="badge bg-warning text-dark">Pending</span>
+                      {% endif %}
+                  </td>
+                  <td class="text-center">
+                      <button
+                          type="button"
+                          class="btn btn-sm btn-success start-task-btn"
+                          data-task-id="{{ task.id }}"
+                          data-task-title="{{ task.title }}"
+                      >
+                          ▶ Start Task
+                      </button>
+                      <a href="{{ url_for('main.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary" aria-label="Edit task {{ task.title }}">
+                          <i class="fa-solid fa-pen-to-square"></i>
+                      </a>
+                      <button type="button" class="btn btn-sm btn-outline-danger btn-delete-task" data-task-id="{{ task.id }}" aria-label="Delete task {{ task.title }}">
+                          <i class="fa-solid fa-trash"></i>
+                      </button>
+                  </td>
+              </tr>
+              {% endfor %}
+
+              {% if recent_tasks|length > 3 %}
+              <tr class="table-light">
+                  <td colspan="5" class="text-center">
+                      <a href="{{ url_for('main.all_tasks') }}" class="text-decoration-none fw-bold">
+                          … View all tasks
+                      </a>
+                  </td>
+              </tr>
+              {% endif %}
           {% else %}
           <tr>
-            <td colspan="5" class="text-center text-muted">No recent tasks found. Start by creating a new task!</td>
+              <td colspan="5" class="text-center text-muted">
+                  No recent tasks found. Start by creating a new task!
+              </td>
           </tr>
-          {% endif %}
+        {% endif %}
         </tbody>
+
       </table>
     </div>
 

@@ -502,6 +502,10 @@ def dashboard_customized():
 
     features = sorted(list(features))
 
+    dashboard_preview_tasks = Task.query.filter_by(user_id=current_user.id).order_by(
+        Task.priority.asc(),
+        Task.due_date.asc().nulls_last()
+    ).limit(3).all()
 
     # --- Render dashboard with preferences passed in ---
     return render_template(
@@ -509,6 +513,7 @@ def dashboard_customized():
         user=current_user,
         tasks=tasks_all,
         recent_tasks=recent_tasks,
+        dashboard_preview_tasks=dashboard_preview_tasks,
         task_counts=task_counts,
         filter_status=filter_status,
         filter_priority=filter_priority,
